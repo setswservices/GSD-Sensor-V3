@@ -46,10 +46,16 @@ ORDERED_OBJS += \
 "./driverlib/MSP430FR5xx_6xx/tlv.obj" \
 "./driverlib/MSP430FR5xx_6xx/uups.obj" \
 "./driverlib/MSP430FR5xx_6xx/wdt_a.obj" \
+"./src/audio.obj" \
+"./src/debugPort.obj" \
 "./src/hw.obj" \
+"./src/nrf905.obj" \
+"./src/rtc_c.obj" \
+"./src/timer_a3.obj" \
+"./src_asm/adcCopy2FRAM.obj" \
+"./src_asm/z_audio.obj" \
 "../lnk_msp430fr5989.cmd" \
 $(GEN_CMDS__FLAG) \
--llibmpu_init.a \
 -llibmath.a \
 -llibc.a \
 
@@ -63,9 +69,11 @@ RMDIR := RMDIR /S/Q
 -include subdir_vars.mk
 -include driverlib/MSP430FR5xx_6xx/subdir_vars.mk
 -include src/subdir_vars.mk
+-include src_asm/subdir_vars.mk
 -include subdir_rules.mk
 -include driverlib/MSP430FR5xx_6xx/subdir_rules.mk
 -include src/subdir_rules.mk
+-include src_asm/subdir_rules.mk
 -include objects.mk
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -182,7 +190,7 @@ all: $(OBJS) $(CMD_SRCS) $(GEN_CMDS)
 SingleBoard_3.1.out: $(OBJS) $(CMD_SRCS) $(GEN_CMDS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: MSP430 Linker'
-	"C:/ti/ccs920/ccs/tools/compiler/ti-cgt-msp430_18.12.4.LTS/bin/cl430" -vmspx --data_model=restricted --use_hw_mpy=F5 --advice:power=all --advice:hw_config=all --define=__MSP430FR5989__ --define=_MPU_ENABLE -g --printf_support=minimal --diag_warning=225 --diag_wrap=off --display_error_number --silicon_errata=CPU21 --silicon_errata=CPU22 --silicon_errata=CPU40 -z -m"SingleBoard_3.1.map" --heap_size=160 --stack_size=160 --cinit_hold_wdt=on -i"C:/ti/ccs920/ccs/ccs_base/msp430/include" -i"C:/ti/ccs920/ccs/ccs_base/msp430/lib/5xx_6xx_FRxx" -i"C:/ti/ccs920/ccs/ccs_base/msp430/lib/FR59xx" -i"C:/ti/ccs920/ccs/tools/compiler/ti-cgt-msp430_18.12.4.LTS/lib" -i"C:/ti/ccs920/ccs/tools/compiler/ti-cgt-msp430_18.12.4.LTS/include" --priority --reread_libs --define=_MPU_ENABLE --diag_wrap=off --display_error_number --warn_sections --xml_link_info="SingleBoard_3.1_linkInfo.xml" --use_hw_mpy=F5 --rom_model -o "SingleBoard_3.1.out" $(ORDERED_OBJS)
+	"C:/ti/ccs920/ccs/tools/compiler/ti-cgt-msp430_18.12.4.LTS/bin/cl430" -vmspx --data_model=large --use_hw_mpy=F5 --advice:power="all" --advice:hw_config=all --define=__MSP430FR5989__ -g --printf_support=minimal --diag_warning=225 --diag_wrap=off --display_error_number --silicon_errata=CPU21 --silicon_errata=CPU22 --silicon_errata=CPU40 -k --asm_listing -z -m"SingleBoard_3.1.map" --heap_size=160 --stack_size=160 --cinit_hold_wdt=on -i"C:/ti/ccs920/ccs/ccs_base/msp430/include" -i"C:/ti/ccs920/ccs/ccs_base/msp430/lib/5xx_6xx_FRxx" -i"C:/ti/ccs920/ccs/ccs_base/msp430/lib/FR59xx" -i"C:/ti/ccs920/ccs/tools/compiler/ti-cgt-msp430_18.12.4.LTS/lib" -i"C:/ti/ccs920/ccs/tools/compiler/ti-cgt-msp430_18.12.4.LTS/include" --priority --reread_libs --diag_wrap=off --display_error_number --warn_sections --xml_link_info="SingleBoard_3.1_linkInfo.xml" --use_hw_mpy=F5 --rom_model -o "SingleBoard_3.1.out" $(ORDERED_OBJS)
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 
@@ -196,10 +204,15 @@ SingleBoard_3.1.hex: $(EXE_OUTPUTS)
 # Other Targets
 clean:
 	-$(RM) $(BIN_OUTPUTS__QUOTED)$(EXE_OUTPUTS__QUOTED)
+	-$(RM) "main.lst" "driverlib/MSP430FR5xx_6xx/adc12_b.lst" "driverlib/MSP430FR5xx_6xx/aes256.lst" "driverlib/MSP430FR5xx_6xx/comp_e.lst" "driverlib/MSP430FR5xx_6xx/crc.lst" "driverlib/MSP430FR5xx_6xx/crc32.lst" "driverlib/MSP430FR5xx_6xx/cs.lst" "driverlib/MSP430FR5xx_6xx/dma.lst" "driverlib/MSP430FR5xx_6xx/esi.lst" "driverlib/MSP430FR5xx_6xx/eusci_a_spi.lst" "driverlib/MSP430FR5xx_6xx/eusci_a_uart.lst" "driverlib/MSP430FR5xx_6xx/eusci_b_i2c.lst" "driverlib/MSP430FR5xx_6xx/eusci_b_spi.lst" "driverlib/MSP430FR5xx_6xx/framctl.lst" "driverlib/MSP430FR5xx_6xx/framctl_a.lst" "driverlib/MSP430FR5xx_6xx/gpio.lst" "driverlib/MSP430FR5xx_6xx/hspll.lst" "driverlib/MSP430FR5xx_6xx/lcd_c.lst" "driverlib/MSP430FR5xx_6xx/mpu.lst" "driverlib/MSP430FR5xx_6xx/mpy32.lst" "driverlib/MSP430FR5xx_6xx/mtif.lst" "driverlib/MSP430FR5xx_6xx/pmm.lst" "driverlib/MSP430FR5xx_6xx/ram.lst" "driverlib/MSP430FR5xx_6xx/ref_a.lst" "driverlib/MSP430FR5xx_6xx/rtc_b.lst" "driverlib/MSP430FR5xx_6xx/rtc_c.lst" "driverlib/MSP430FR5xx_6xx/saph.lst" 
+	-$(RM) "driverlib/MSP430FR5xx_6xx/saph_a.lst" "driverlib/MSP430FR5xx_6xx/sdhs.lst" "driverlib/MSP430FR5xx_6xx/sfr.lst" "driverlib/MSP430FR5xx_6xx/sysctl.lst" "driverlib/MSP430FR5xx_6xx/timer_a.lst" "driverlib/MSP430FR5xx_6xx/timer_b.lst" "driverlib/MSP430FR5xx_6xx/tlv.lst" "driverlib/MSP430FR5xx_6xx/uups.lst" "driverlib/MSP430FR5xx_6xx/wdt_a.lst" "src/audio.lst" "src/debugPort.lst" "src/hw.lst" "src/nrf905.lst" "src/rtc_c.lst" "src/timer_a3.lst" "src_asm/adcCopy2FRAM.lst" "src_asm/z_audio.lst" 
 	-$(RM) "main.obj" "driverlib\MSP430FR5xx_6xx\adc12_b.obj" "driverlib\MSP430FR5xx_6xx\aes256.obj" "driverlib\MSP430FR5xx_6xx\comp_e.obj" "driverlib\MSP430FR5xx_6xx\crc.obj" "driverlib\MSP430FR5xx_6xx\crc32.obj" "driverlib\MSP430FR5xx_6xx\cs.obj" "driverlib\MSP430FR5xx_6xx\dma.obj" "driverlib\MSP430FR5xx_6xx\esi.obj" "driverlib\MSP430FR5xx_6xx\eusci_a_spi.obj" "driverlib\MSP430FR5xx_6xx\eusci_a_uart.obj" "driverlib\MSP430FR5xx_6xx\eusci_b_i2c.obj" "driverlib\MSP430FR5xx_6xx\eusci_b_spi.obj" "driverlib\MSP430FR5xx_6xx\framctl.obj" "driverlib\MSP430FR5xx_6xx\framctl_a.obj" "driverlib\MSP430FR5xx_6xx\gpio.obj" "driverlib\MSP430FR5xx_6xx\hspll.obj" "driverlib\MSP430FR5xx_6xx\lcd_c.obj" "driverlib\MSP430FR5xx_6xx\mpu.obj" "driverlib\MSP430FR5xx_6xx\mpy32.obj" "driverlib\MSP430FR5xx_6xx\mtif.obj" "driverlib\MSP430FR5xx_6xx\pmm.obj" "driverlib\MSP430FR5xx_6xx\ram.obj" "driverlib\MSP430FR5xx_6xx\ref_a.obj" "driverlib\MSP430FR5xx_6xx\rtc_b.obj" "driverlib\MSP430FR5xx_6xx\rtc_c.obj" "driverlib\MSP430FR5xx_6xx\saph.obj" 
-	-$(RM) "driverlib\MSP430FR5xx_6xx\saph_a.obj" "driverlib\MSP430FR5xx_6xx\sdhs.obj" "driverlib\MSP430FR5xx_6xx\sfr.obj" "driverlib\MSP430FR5xx_6xx\sysctl.obj" "driverlib\MSP430FR5xx_6xx\timer_a.obj" "driverlib\MSP430FR5xx_6xx\timer_b.obj" "driverlib\MSP430FR5xx_6xx\tlv.obj" "driverlib\MSP430FR5xx_6xx\uups.obj" "driverlib\MSP430FR5xx_6xx\wdt_a.obj" "src\hw.obj" 
+	-$(RM) "driverlib\MSP430FR5xx_6xx\saph_a.obj" "driverlib\MSP430FR5xx_6xx\sdhs.obj" "driverlib\MSP430FR5xx_6xx\sfr.obj" "driverlib\MSP430FR5xx_6xx\sysctl.obj" "driverlib\MSP430FR5xx_6xx\timer_a.obj" "driverlib\MSP430FR5xx_6xx\timer_b.obj" "driverlib\MSP430FR5xx_6xx\tlv.obj" "driverlib\MSP430FR5xx_6xx\uups.obj" "driverlib\MSP430FR5xx_6xx\wdt_a.obj" "src\audio.obj" "src\debugPort.obj" "src\hw.obj" "src\nrf905.obj" "src\rtc_c.obj" "src\timer_a3.obj" "src_asm\adcCopy2FRAM.obj" "src_asm\z_audio.obj" 
 	-$(RM) "main.d" "driverlib\MSP430FR5xx_6xx\adc12_b.d" "driverlib\MSP430FR5xx_6xx\aes256.d" "driverlib\MSP430FR5xx_6xx\comp_e.d" "driverlib\MSP430FR5xx_6xx\crc.d" "driverlib\MSP430FR5xx_6xx\crc32.d" "driverlib\MSP430FR5xx_6xx\cs.d" "driverlib\MSP430FR5xx_6xx\dma.d" "driverlib\MSP430FR5xx_6xx\esi.d" "driverlib\MSP430FR5xx_6xx\eusci_a_spi.d" "driverlib\MSP430FR5xx_6xx\eusci_a_uart.d" "driverlib\MSP430FR5xx_6xx\eusci_b_i2c.d" "driverlib\MSP430FR5xx_6xx\eusci_b_spi.d" "driverlib\MSP430FR5xx_6xx\framctl.d" "driverlib\MSP430FR5xx_6xx\framctl_a.d" "driverlib\MSP430FR5xx_6xx\gpio.d" "driverlib\MSP430FR5xx_6xx\hspll.d" "driverlib\MSP430FR5xx_6xx\lcd_c.d" "driverlib\MSP430FR5xx_6xx\mpu.d" "driverlib\MSP430FR5xx_6xx\mpy32.d" "driverlib\MSP430FR5xx_6xx\mtif.d" "driverlib\MSP430FR5xx_6xx\pmm.d" "driverlib\MSP430FR5xx_6xx\ram.d" "driverlib\MSP430FR5xx_6xx\ref_a.d" "driverlib\MSP430FR5xx_6xx\rtc_b.d" "driverlib\MSP430FR5xx_6xx\rtc_c.d" "driverlib\MSP430FR5xx_6xx\saph.d" "driverlib\MSP430FR5xx_6xx\saph_a.d" "driverlib\MSP430FR5xx_6xx\sdhs.d" 
-	-$(RM) "driverlib\MSP430FR5xx_6xx\sfr.d" "driverlib\MSP430FR5xx_6xx\sysctl.d" "driverlib\MSP430FR5xx_6xx\timer_a.d" "driverlib\MSP430FR5xx_6xx\timer_b.d" "driverlib\MSP430FR5xx_6xx\tlv.d" "driverlib\MSP430FR5xx_6xx\uups.d" "driverlib\MSP430FR5xx_6xx\wdt_a.d" "src\hw.d" 
+	-$(RM) "driverlib\MSP430FR5xx_6xx\sfr.d" "driverlib\MSP430FR5xx_6xx\sysctl.d" "driverlib\MSP430FR5xx_6xx\timer_a.d" "driverlib\MSP430FR5xx_6xx\timer_b.d" "driverlib\MSP430FR5xx_6xx\tlv.d" "driverlib\MSP430FR5xx_6xx\uups.d" "driverlib\MSP430FR5xx_6xx\wdt_a.d" "src\audio.d" "src\debugPort.d" "src\hw.d" "src\nrf905.d" "src\rtc_c.d" "src\timer_a3.d" 
+	-$(RM) "main.asm" "driverlib/MSP430FR5xx_6xx/adc12_b.asm" "driverlib/MSP430FR5xx_6xx/aes256.asm" "driverlib/MSP430FR5xx_6xx/comp_e.asm" "driverlib/MSP430FR5xx_6xx/crc.asm" "driverlib/MSP430FR5xx_6xx/crc32.asm" "driverlib/MSP430FR5xx_6xx/cs.asm" "driverlib/MSP430FR5xx_6xx/dma.asm" "driverlib/MSP430FR5xx_6xx/esi.asm" "driverlib/MSP430FR5xx_6xx/eusci_a_spi.asm" "driverlib/MSP430FR5xx_6xx/eusci_a_uart.asm" "driverlib/MSP430FR5xx_6xx/eusci_b_i2c.asm" "driverlib/MSP430FR5xx_6xx/eusci_b_spi.asm" "driverlib/MSP430FR5xx_6xx/framctl.asm" "driverlib/MSP430FR5xx_6xx/framctl_a.asm" "driverlib/MSP430FR5xx_6xx/gpio.asm" "driverlib/MSP430FR5xx_6xx/hspll.asm" "driverlib/MSP430FR5xx_6xx/lcd_c.asm" "driverlib/MSP430FR5xx_6xx/mpu.asm" "driverlib/MSP430FR5xx_6xx/mpy32.asm" "driverlib/MSP430FR5xx_6xx/mtif.asm" "driverlib/MSP430FR5xx_6xx/pmm.asm" "driverlib/MSP430FR5xx_6xx/ram.asm" "driverlib/MSP430FR5xx_6xx/ref_a.asm" "driverlib/MSP430FR5xx_6xx/rtc_b.asm" "driverlib/MSP430FR5xx_6xx/rtc_c.asm" "driverlib/MSP430FR5xx_6xx/saph.asm" 
+	-$(RM) "driverlib/MSP430FR5xx_6xx/saph_a.asm" "driverlib/MSP430FR5xx_6xx/sdhs.asm" "driverlib/MSP430FR5xx_6xx/sfr.asm" "driverlib/MSP430FR5xx_6xx/sysctl.asm" "driverlib/MSP430FR5xx_6xx/timer_a.asm" "driverlib/MSP430FR5xx_6xx/timer_b.asm" "driverlib/MSP430FR5xx_6xx/tlv.asm" "driverlib/MSP430FR5xx_6xx/uups.asm" "driverlib/MSP430FR5xx_6xx/wdt_a.asm" "src/audio.asm" "src/debugPort.asm" "src/hw.asm" "src/nrf905.asm" "src/rtc_c.asm" "src/timer_a3.asm" "src_asm/adcCopy2FRAM.asm" "src_asm/z_audio.asm" 
+	-$(RM) "src_asm\adcCopy2FRAM.d" "src_asm\z_audio.d" 
 	-@echo 'Finished clean'
 	-@echo ' '
 

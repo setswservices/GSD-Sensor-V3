@@ -11,9 +11,7 @@
 // [ADK] 11/13/2019   for debuuging ..
 #define delay_ms(_x_) 	_delay_cycles((unsigned long)((8000 -1)*(_x_)))
 
-//#if GSD_FEATURE_ENABLED(DEBUGGING_MENU)
-//extern uint8_t audio_intr_flag;
-//#endif // GSD_FEATURE_ENABLED(DEBUGGING_MENU)
+extern uint8_t  gsd_audio_event;
 
 
 void init_ports(void)
@@ -240,13 +238,12 @@ void Port_1 (void)
 {
     uint16_t irq;	
 
+    LPM3_EXIT;
+    	__no_operation();                         // For debugger
     irq = GPIO_getInterruptStatus(GPIO_PORT_P1, GPIO_PIN0);
 	if ((irq & GPIO_PIN0) == GPIO_PIN0) {
 		GPIO_clearInterrupt( GPIO_PORT_P1, GPIO_PIN0);
-//#if GSD_FEATURE_ENABLED(DEBUGGING_MENU)
-//		audio_intr_flag = 1;
-//#endif // GSD_FEATURE_ENABLED(DEBUGGING_MENU)
-//    		gsd_state = GSD_AUDIO_EVENT;	
+		gsd_audio_event = GSD_HAVE_EVENT;
 	}
 }
 

@@ -10,11 +10,9 @@
 #define GSD_H_
 
 #include "gsd_config.h"
-/* ========================
- *  Event states
- *========================*/
-#define GSD_NO_EVENT		(0x00)
-#define GSD_HAVE_EVENT		(0x01)
+
+#define NoAUDIO_SAMPLES_PER_CHANK		(16*1024)
+
 /* ========================
  *  FW startup states
  *========================*/
@@ -260,6 +258,11 @@ void adcInit(void);
 void audioStart(void);
 void audioHandleAudioEvent(void);
 
+// === Tx Timer
+void txTimerInit(void);
+void txTimerSet(uint8_t cnt);
+void txTimerStart(void);
+void txTimerStop(void);
 
 
 #endif /* GSD_H_ */

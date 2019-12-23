@@ -12,7 +12,7 @@
 #include "chars.h"
 
 #define FW_MAJ_REV       03 		 // major rev for substantial changes or releases
-#define FW_MIN_REV       01  		// less major revisions
+#define FW_MIN_REV       1  		// less major revisions
 #define FW_BUILD_NUMBER  00  	// build numbers used for test revisions within a minor rev
 
 #define STRING_IT(x) # x
@@ -26,18 +26,27 @@
     ((defined(feature ## _ENABLED) && (feature ## _ENABLED)) ? 1 : 0)
 
 #define delay_ms(_x_) 	_delay_cycles((unsigned long)((8000 -1)*(_x_)))
+/* ========================
+ *  Event states
+ *========================*/
+#define GSD_NO_EVENT		(0x00)
+#define GSD_HAVE_EVENT		(0x01)
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // The main defines for used HW and FW
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 #define DEBUG_SERIAL_PORT_ENABLED			1
+#define GSD_USE_PRINTF_ENABLED				0
 #define DEBUG_BEFORE_EEPROM_INIT_ENABLED	1
+#define AUDIO_FRAM_CLEANUP_ENABLED			1
 
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 #define DEBUGGING_MENU_ENABLED				1
 #endif // GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 #define xCHK_MULTIPLE_SHOTS					0
+#define DUMP_NRF905_CFG_ENABLED				0
 
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 void	debugPortInit(void);
