@@ -140,7 +140,18 @@ void rtc_set_alarm(uint8_t bcd_hr, uint8_t bcd_min)
 
 
 }
-	
+
+void rtc_set_fake_time(void)
+{
+	// Set 01/01/2020  00:00:00
+	currentTime.Month = 0x01;
+	currentTime.DayOfMonth = 0x01;
+	currentTime.Year = 0x20;
+	currentTime.Hours = 0x00;
+	currentTime.Minutes = 0x00;
+	currentTime.Seconds = 0x00;
+	rtc_load();
+}
 
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 // Print from the currentTime!!
@@ -530,6 +541,8 @@ void RTC_ISR (void)
 //#if GSD_FEATURE_ENABLED(DEBUGGING_MENU)
  //       		rtc_alarm_intr_flag = 1;
 //#endif //GSD_FEATURE_ENABLED(DEBUGGING_MENU)
+                __no_operation();
+                __no_operation();
                 break;
         case RTCIV_RT0PSIFG: break; //RT0PSIFG
         case RTCIV_RT1PSIFG: break; //RT1PSIFG

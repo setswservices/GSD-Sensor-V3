@@ -11,6 +11,9 @@
 #include "gsd.h"
 
 extern gsd_setup_t	gsd_setup;
+#define LETTER_A      0x41
+#define LETTER_Z      0x5A
+
 
 static void default_setup(void)
 {
@@ -52,7 +55,7 @@ static void default_setup(void)
 	gsd_setup.RAMn_RF_SLOTNo	= 0x00;
 	gsd_setup.RAMn_SLOT_DLYNo	= 0x00;
 	gsd_setup.RAMn_DA01			= 0x225;	// Detect Threshold, for LTC1662 DAC
-	gsd_setup.RAMn_VAR_LMT0		= 0x000;  	
+	gsd_setup.RAMn_VAR_LMT0		= 0x0000;  	
 	gsd_setup.RAMn_VAR_LMT2		= 0x0018;
 	gsd_setup.RAMn_ALRM0HR		= 0x19;	      // RTC Alarm setup hours for PWR OFF (to LPM3.5) in BCD
 	gsd_setup.RAMn_ALRM1HR		= 0x07;      //  RTC Alarm setup  hours for PWR ON (from PPM3.5) in BCD 		
@@ -79,7 +82,7 @@ static void vMoveCursorToBeginInput(void )
 static void setup(void) 
 {
 	unsigned long inData;
-	uint8_t inByte, updFlg = 0;
+	uint8_t inByte, updFlg = 0, rc;
 
 	if (*((uint16_t *)RAM_FRAM_INFO) == 0xFFFF) {
 		vPrintString("INFOD is empty"); vPrintEOL();
@@ -91,57 +94,68 @@ static void setup(void)
 	}
 
 	vPrintString("ID(~8000)="); vPrintString(psUInt16HexToString(gsd_setup.RAMn_TAGID, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0x7FFF;
 		if (inData != gsd_setup.RAMn_TAGID) { gsd_setup.RAMn_TAGID = inData; updFlg =1; }
 	}
 	
 	vPrintString("ROOM #(XXXX)="); vPrintString(psUInt16ToString(gsd_setup.RAMn_ROOMNo, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getInt();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		if (inData != gsd_setup.RAMn_ROOMNo) { gsd_setup.RAMn_ROOMNo = inData;  updFlg =1; }
 	}
 	
 	vPrintString("ROOM DESCRIPTOR(ASCII CHAR)="); vPrintChar(gsd_setup.RAMn_FLOORNo); vPrintChar('\b');
 	inByte = uart_getByte();
-	if (inByte) {
+	if (inByte >= LETTER_A && inByte <= LETTER_Z)
+	{
 		if (inByte != gsd_setup.RAMn_FLOORNo)  { gsd_setup.RAMn_FLOORNo = inByte;  updFlg =1; }
 	}
+       vPrintEOL();
+
+	vPrintString("DAC Threshold="); vPrintString(psUInt16HexToString(gsd_setup.RAMn_DA01, prt_buf)); vMoveCursorToBeginInput();
+	rc = uart_getHexTo(&inData);
+	if (rc) {
+//	vPrintString("\t-> "); vPrintString(psUInt16HexToString(inData, prt_buf)); vPrintEOL();
+	
+		if (inData != gsd_setup.RAMn_DA01) { gsd_setup.RAMn_DA01= inData;  updFlg =1; }
+	}
+	
 		
 	vPrintString("FUNCTION:(00=RUN woHBPM, 01=RUN wHB, 02=RUN wPM, 04=RUN wHB+PM)"); vPrintEOL();
 	vPrintString("         (80=DEEP SLEEP Icc=12 uA, 10=RF BEACON)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_FUNCTION, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_FUNCTION) { gsd_setup.RAMn_FUNCTION= inData;  updFlg =1; }
 	}
-
+	   
 	vPrintString("RUN MODE (80=SND WF HW, 40=CALB ALRM TH, 04=SND TEST DATA RF"); vPrintEOL();
 	vPrintString("          02=SND EVENT RF, 01=SND ALRM ONLY RF)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_MODE, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_MODE) { gsd_setup.RAMn_MODE= inData; updFlg =1; }
 	}
 
 	vPrintString("DEBUG DSPLY FLG (00=NO DSPLY)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_DEBUG, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_DEBUG) { gsd_setup.RAMn_DEBUG= inData;  updFlg =1; }
 	}
 
 	vPrintString("LED ALRM/REJECT DSPLY FLG (00=NO RED/GRN FLASH)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_LED_ONFLG, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_LED_ONFLG) { gsd_setup.RAMn_LED_ONFLG= inData;  updFlg =1; }
 	}
 	
 	vPrintString("LED DETECT DSPLY FLG (00=NO GRN FLASH)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_LED_DETECTFLG, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_LED_DETECTFLG) { gsd_setup.RAMn_LED_DETECTFLG= inData;  updFlg =1; }
 	}
@@ -151,8 +165,8 @@ static void setup(void)
 	psUInt16HexToString(gsd_setup.RAMn_VAR_LMT0, prt_buf + 4);
 	vPrintString(prt_buf); vMoveCursorToBeginInput();
 
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		uint16_t lmt2, lmt0;
 		lmt2 = (inData >> 16);
 		lmt0 = (inData&0xFFFF);
@@ -161,54 +175,60 @@ static void setup(void)
 	}
 
 	vPrintString("VARIANCE ALRM CALB SCALE FACTOR(~03)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_ALARM_SF, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_ALARM_SF) { gsd_setup.RAMn_ALARM_SF= inData;  updFlg =1; }
 	}
 
 	vPrintString("RF SLOT #(00=NO DLY)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_RF_SLOTNo, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_RF_SLOTNo) { gsd_setup.RAMn_RF_SLOTNo= inData;  updFlg =1; }
 	}
 
 	vPrintString("RF SLOT DLY x10ms(00=NO DLY,~01)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_SLOT_DLYNo, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_SLOT_DLYNo) { gsd_setup.RAMn_SLOT_DLYNo= inData;  updFlg =1; }
 	}
 
 	vPrintString("RF BEACON DLY x1SECs(~03)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_BEACON_DLY, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_BEACON_DLY) { gsd_setup.RAMn_BEACON_DLY= inData;  updFlg =1; }
 	}
 
 	vPrintString("POWER MANAGEMENT-AUDIO OFF HR (24 HR FORMAT)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_ALRM0HR, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_ALRM0HR) {
 			gsd_setup.RAMn_ALRM0HR= inData;  updFlg =1; 
 // TODO: [ADK]  12/30/2019  we need add setup for this field !!	
-			gsd_setup.RAMn_ALRM0MIN = 0; 
+//			gsd_setup.RAMn_ALRM0MIN = 0; 
 		}
+	}
+	vPrintString("                -AUDIO OFF MIN [00-59]="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_ALRM0MIN, prt_buf)); vMoveCursorToBeginInput();
+	rc = uart_getHexTo(&inData);
+	if (rc) {
+		inData &=0xFF;
+		if (inData != gsd_setup.RAMn_ALRM0MIN) { gsd_setup.RAMn_ALRM0MIN= inData;  updFlg =1; }
 	}
  
 	vPrintString("POWER MANAGEMENT-AUDIO ON & HBEAT HR  (24 HR FORMAT)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_ALRM1HR, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_ALRM1HR) { gsd_setup.RAMn_ALRM1HR= inData;  updFlg =1; }
 	}
 
-	vPrintString("                -AUDIO ON & HBEAT MIN (24 HR FORMAT)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_ALRM1MIN, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	vPrintString("                -AUDIO ON [00-59]="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_ALRM1MIN, prt_buf)); vMoveCursorToBeginInput();
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_ALRM1MIN) { gsd_setup.RAMn_ALRM1MIN= inData;  updFlg =1; }
 	}
@@ -217,22 +237,22 @@ static void setup(void)
 	vPrintString("  PM (1X=DAILY,2X=MON-FRI,NO WEEKENDS)"); vPrintEOL();
 	vPrintString("  HB (X1=DAILY,X2=MON/WED/FRI,X4=MONDAY ONLY)"); vPrintEOL();
 	vPrintString("PM & HBEAT SETTING (~24)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_HBPM_INTERVAL, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_HBPM_INTERVAL) { gsd_setup.RAMn_HBPM_INTERVAL= inData;  updFlg =1; }
 	}
 
 	vPrintString("RF FREQ (02=434.7, 01=433.2, 00=430.0)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_RF_FREQ, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_RF_FREQ) { gsd_setup.RAMn_RF_FREQ= inData;  updFlg =1; }
 	}
 	
 	vPrintString("STARTUP MODE FLG (00=MENU,01=RUN)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_STARTUP_FLG, prt_buf)); vMoveCursorToBeginInput();
-	inData = uart_getHex();
-	if (inData) {
+	rc = uart_getHexTo(&inData);
+	if (rc) {
 		inData &=0xFF;
 		if (inData != gsd_setup.RAMn_STARTUP_FLG) { gsd_setup.RAMn_STARTUP_FLG= inData;  updFlg =1; }
 	}

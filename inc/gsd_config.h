@@ -32,6 +32,12 @@
 #define GSD_NO_EVENT		(0x00)
 #define GSD_HAVE_EVENT		(0x01)
 
+// RAM_EXTENDED     .equ  10000H              ;10000H-23FFFF=82K FOR FR5989    
+#define RAM_EXTENDED     ((unsigned long)0x10000)
+#define GSD_MAX_TRY_ACK			(3)
+// No_LED_PULSES .equ    05                  ;# 10ms ON/OFF TO MAKE 200ms DURATION
+#define No_LED_PULSES 	(05)             
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // The main defines for used HW and FW
@@ -39,8 +45,21 @@
 
 #define DEBUG_SERIAL_PORT_ENABLED			1
 #define GSD_USE_PRINTF_ENABLED				0
-#define DEBUG_BEFORE_EEPROM_INIT_ENABLED	1
+#define DEBUG_BEFORE_EEPROM_INIT_ENABLED	0
 #define AUDIO_FRAM_CLEANUP_ENABLED			1
+#define DATA_PORT_ENABLED						1
+#define HBEAT_ACK_PACKET_ENABLED				1
+/* ====================================
+  *  [ADK]  01/14/2020: LPM4 - 0.5uA for the CPU. We can't use it becouse the can't control +V_Audio
+  *                               LPM3 - 0.7uA - we can control GPIO pins.
+  *  					 Use  LPM3 for 01/14/2020 
+*/
+#define LPM4_ENABLED							0
+/* ====================================
+  * [ADK] 01/15/2020   Disable seep mode. For show only
+*/
+#define SLEEP_MODE_ENABLED					1
+#define SLEEP_TIME_SETUP_FROM_AGGREGATOR_ENABLED		1
 
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 #define DEBUGGING_MENU_ENABLED				1
@@ -52,8 +71,10 @@
 void	debugPortInit(void);
 int uart_getchar(void);
 unsigned long uart_getInt(void);
-unsigned long uart_getHex(void); 
+unsigned long  uart_getHex(void); 
 void debugPortDisable(void);
+uint8_t uart_getByte(void);
+uint8_t uart_getHexTo(unsigned long *pOut);
 #endif //GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 
 void initPortJ(void);

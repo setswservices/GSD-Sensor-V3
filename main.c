@@ -56,6 +56,9 @@ uint8_t  gsd_tx_packet_type = 0x00;
   *   This is a RAM copy for setup from INFO-D 
   *********************************************/
 gsd_setup_t	gsd_setup;
+#if GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
+static uint8_t  gsd_try_ack_packets_cnt = 0;
+#endif //GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
 
 /*********************************************
   *   Audio analysis variables 
@@ -158,7 +161,10 @@ int main(void)
     	PMM_unlockLPM5();
 
 	init_ports();
+	pwr_led0_red();
 	initPortRF();
+	audioOFF();
+	gsd_audio_event = GSD_NO_EVENT;
 	__enable_interrupt();
 	rtc_init();
 	rxTimerInit();
@@ -171,6 +177,10 @@ int main(void)
 	gsd_setup.RAMn_MODE = 0x01;
 	gsd_setup.RAMn_VAR_LMT2 = 0x0018;	// MSW
 	gsd_setup.RAMn_VAR_LMT0 = 0;			// LSW
+	gsd_setup.RAMn_ROOMNo = 0x04D2;		// 1234
+	gsd_setup.RAMn_FLOORNo = 'A';
+#else
+	init_setup();
 #endif //GSD_FEATURE_ENABLED(DEBUG_BEFORE_EEPROM_INIT)
 
 #if GSD_FEATURE_ENABLED(AUDIO_FRAM_CLEANUP)
@@ -200,12 +210,15 @@ int main(void)
 	vPrintString((gsd_fw_startup == GSD_WAKEUP)? "wake up" : "reset");
 	vPrintEOL();
 #endif GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
+
 /*********************************************
   *   Start Audio system 
   *   
   *********************************************/
 	audioInit();
-	audioStart();
+    __no_operation();                         // For debugger
+
+// [ADK]  02/01/2020  becouse we always send the HB packet..   audioStart();
 /*********************************************
   *   Send HB_ON package
   *   The FW expect a response during the Rx Timeout.
@@ -221,20 +234,52 @@ int main(void)
 			audioHandleAudioEvent();	
 			gsd_tx_packet_type = RAM_ALRM_FLG;
 			nRF905_sndRstHB();
+			if (gsd_tx_packet_type == 1 /* ALARM */)
+				flash_led0_red();
+			else
+				flash_led1_green();
 			gsd_audio_event = GSD_NO_EVENT;
-			audioStart();
+			
+#if GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
+			gsd_try_ack_packets_cnt = 0;
+#endif //GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
 			continue;
 		}
     		if (gsd_tx_done_event) {
 			vPrintString("\tTx Done event");
 			vPrintEOL();
-			gsd_tx_done_event = GSD_NO_EVENT;
 			nRF905_TxDone();
+			gsd_tx_done_event = GSD_NO_EVENT;
 			if ((gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3) || (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_OFF_3))
 			{
 				nRF905_RxStart();
 				rxTimerSet(0x6);
 				rxTimerStart();
+			}else{
+				if (getSendWfFlag() == 0x01)  // we done with send a 1st packet with the WF data ..
+					nRF905_send_2nd();
+				else
+				if (getSendWfFlag() == 0x02)  // we done with send a 2nd packet with the WF data ..
+					nRF905_send_3rd();
+				else
+				if (getSendWfFlag() == 0x03)  {// we done with send a 3rd packet with the WF data ..
+#if GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
+					if ((gsd_setup.RAMn_MODE&0x08) == 0x08 && gsd_tx_packet_type == 1 /* ALARM */) {
+						// Try read the ACK packet ..
+						nRF905_RxStart();
+						rxTimerSet(0x6);
+						rxTimerStart();
+					}
+#endif // GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
+#if GSD_FEATURE_ENABLED(DATA_PORT)
+					if ((gsd_setup.RAMn_MODE&0x80) == 0x80) 
+						vWfDataOut();
+#endif //GSD_FEATURE_ENABLED(DATA_PORT)
+#if GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
+					if ((gsd_setup.RAMn_MODE&0x08) == 0) 
+#endif // GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
+					audioStart();
+				}
 			}
 			continue;
     		}
@@ -248,12 +293,14 @@ int main(void)
 			nRF905_SetRTC();
 			nRF905_RxDone();
 			nRF905_pwr_off();
+			rx_led1_green();
 			if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_OFF_3)
 			{
 				EnterLPM35();
     				__no_operation();                         // For debugger, 'll *never* reach this point
 			}
 			gsd_tx_packet_type = 0xFF;
+			audioStart();
 			continue;
 		}
     		if (gsd_rx_timer_event) {
@@ -263,6 +310,29 @@ int main(void)
 			rxTimerStop();
 			nRF905_RxDone();
 			nRF905_pwr_off();
+			if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3)
+			{
+				vPrintString("\tGoing to deep sleep for 1 hour");
+				vPrintEOL(); 				vPrintEOL();
+				rtc_set_fake_time();
+				nRF905_SetDtWakeUp(0x01, 0x00);
+// Sleep 1 minute, for debugging				nRF905_SetDtWakeUp(0x00, 0x01);
+				EnterLPM35();
+    				__no_operation();                         // For debugger, 'll *never* reach this point
+			}
+			
+#if GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
+			if ((gsd_setup.RAMn_MODE&0x08) == 0x08 && gsd_tx_packet_type == 1 /* ALARM */) {
+				gsd_try_ack_packets_cnt++;
+				if (GSD_MAX_TRY_ACK >= gsd_try_ack_packets_cnt) 
+				{
+					nRF905_sndRstHB();
+					continue;
+				}
+			}
+#endif //GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
+			
+			audioStart();
 			continue;
     		}
     		if (gsd_rtc_event) {
@@ -270,23 +340,22 @@ int main(void)
 			vPrintEOL();
 			gsd_rtc_event = GSD_NO_EVENT;
 			gsd_tx_packet_type = HBEAT_wAUDIO_PWR_OFF_3;
+			audio_int_disable();
+			audioOFF();
 			nRF905_sndRstHB();
 			continue;
     		}
     		if (gsd_uart_event) 
     		{
 			int c;	
-			c = uart_getchar(); 
 			gsd_uart_event = GSD_NO_EVENT;
 			vPrintString("\tUART event"); 
 			vPrintEOL();
-			
-    			if (c == CNTRL_C) {
-				vPrintString("\tEnter to setup"); vPrintEOL();
-				while(1)
-					delay_ms(1);
-    			}
+			setup_enter();	
+			gsd_uart_event = GSD_NO_EVENT;
     		}
+		GPIO_setOutputHighOnPin(GPIO_PORT_P9, GPIO_PIN2);
+		DelayMS(1);
 		EnterLPM3();
     	}
 	return 0;
@@ -309,14 +378,57 @@ static void EnterLPM35(void)
 	debugPortDisable();
 #endif // GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 	GPIO_setAsInputPin(    		GPIO_PORT_P2, GPIO_PIN2 + GPIO_PIN6 + GPIO_PIN7);
+	audio_int_disable();
+	audioOFF();
 
-	PMM_turnOffRegulator();
+	GPIO_setAsOutputPin(GPIO_PORT_P1, GPIO_PIN_ALL8);
+	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN5);      // Turn-off EEPROM
+	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN3);      // Turn-off Audio
+	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN6);      // SDA_NFC -> high
+    	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN4);      // RFID_Busy -> high
+	GPIO_setOutputLowOnPin (GPIO_PORT_P1, GPIO_PIN0+GPIO_PIN1+GPIO_PIN2+GPIO_PIN7);
+
+	GPIO_setAsOutputPin(GPIO_PORT_P2, GPIO_PIN_ALL8);
+	GPIO_setOutputLowOnPin (GPIO_PORT_P2, GPIO_PIN_ALL8);
+
+	GPIO_setAsOutputPin(GPIO_PORT_PB, GPIO_PIN_ALL16);
+	GPIO_setOutputLowOnPin (GPIO_PORT_PB, GPIO_PIN_ALL16);
+
+	GPIO_setAsOutputPin(GPIO_PORT_PC, GPIO_PIN_ALL16);
+	GPIO_setOutputLowOnPin (GPIO_PORT_PC, GPIO_PIN_ALL16);
+
+	GPIO_setAsOutputPin(GPIO_PORT_PD, GPIO_PIN_ALL16);
+	GPIO_setOutputLowOnPin (GPIO_PORT_PD, GPIO_PIN_ALL16);
+
+	GPIO_setAsOutputPin(GPIO_PORT_PE, GPIO_PIN_ALL16);
+	GPIO_setOutputLowOnPin (GPIO_PORT_PE, GPIO_PIN_ALL16);
+
+//	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN5);      // Turn-off EEPROM
+//	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN3);      // Turn-off Audio
+
+	GPIO_setOutputHighOnPin (GPIO_PORT_P4, GPIO_PIN1);      // SDA_EE -> high
+//	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN6);      // SDA_NFC -> high
+//    GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN4);      // RFID_Busy -> high
+	GPIO_setOutputHighOnPin (GPIO_PORT_P2, GPIO_PIN6+GPIO_PIN7);      // Turn-off LEDs
+
+
 	nRF905_SetWkUpRTC();
+
+
+#if GSD_FEATURE_ENABLED(LPM4)
+	PMM_turnOffRegulator();
 
 	// Enter LPM3.5 mode with interrupts enabled. Note that this operation does  
 	// not return. The LPM3.5 will exit through a RESET event, resulting in a  
 	// re-start of the code.
 	__bis_SR_register(LPM4_bits | GIE);
+#else
+
+	EnterLPM3();
+
+	HWREG16(WDT_A_BASE + OFS_WDTCTL) |= WDTHOLD;  //Will reset MSP430,WDTIFG flag is set
+#endif // GSD_FEATURE_ENABLED(LPM4)
+
 }
 
 static void WakeUpLPM35(void)

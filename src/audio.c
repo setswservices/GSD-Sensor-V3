@@ -158,12 +158,23 @@ void audioON(void)
 
 void audioOFF(void)
 {
-	       GPIO_setOutputHighOnPin(GPIO_PORT_P1, GPIO_PIN3);   
+     GPIO_setAsOutputPin(    		GPIO_PORT_P1, GPIO_PIN3);  // Audio_ON
+     GPIO_setOutputHighOnPin(GPIO_PORT_P1, GPIO_PIN3);   
+     GPIO_clearInterrupt( GPIO_PORT_P1, GPIO_PIN0);
+
 }
 
 void audioSetThs(void)
 {
 	uint8_t d[2];
+	d[0] = (((gsd_setup.RAMn_DA01<<2) &0xFF00) >>8);
+	d[0] |= 0x90;
+	d[1] = ((gsd_setup.RAMn_DA01<<2) &0x00FF);
+//	vPrintString("\t->DAC=["); vPrintString(psUInt8HexToString(d[0], prt_buf));
+//	vPrintString(", "); vPrintString(psUInt8HexToString(d[1], prt_buf));
+//	vPrintString("]"); vPrintEOL();
+	LTC1662Setup(d);
+#if 0
 // Setup for old HW
 	d[0] = 0x98;
 //	d[0] = 0x18;
@@ -174,7 +185,8 @@ void audioSetThs(void)
 	LTC1662Setup(d);
 	DelayMS(200);
 //	LTC1662Setup(d);
-	
+#endif //0
+
 	d[0] = 0xD0;
 	d[1] = 0x00;
 	LTC1662Setup(d);
@@ -341,7 +353,7 @@ void audioInit(void)
 	audioON();
 	audioSetThs();
 	adcInit();
-	audio_int_enable();
+//	audio_int_enable();
 }
 
 void audioStart(void)

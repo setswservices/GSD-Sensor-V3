@@ -128,7 +128,8 @@ typedef struct {
 ;                               (10=RF BEACON/MAPPING)         *
 ;                               (80=DEEP SLEEP)                *
 ;          -05: MODE FLG     (80=SND WF HOST, 40=CALB ALRM TH) *
-;                            (04=SND DATA RF, 02=SND EVENT RF) *                                               
+;                            (04=SND DATA RF, 02=SND EVENT RF) * 
+;				  (08= EXPECT ACK FROM THE BRIDGE)  * [ADK] 01/06/2020  
 ;                            (01=SND ALRM ONLY RF)             *                                               
 ;          -06: ALRM/REJECT/HB FLG (1 BYTE)                    *
 ;                                  (00=REJECT, 01=ALRM)        *
@@ -164,11 +165,20 @@ typedef struct {
 ;      ----------           -----------                        *
 ;           20H=32              32 BYTES                       *
 ;***************************************************************
+;	with Audio data: MODE_FLG = 0x04: 
+;	1st packet: HB_ECHO = 0, ALARM/Reject packet  + pkt[7:28] := audio data (first 22 bytes), 
+;      2nd packet HB_ECHO = 1, ALARM/Reject packet  + pkt[7:28] := audio data (second 22 bytes),  
+;      3rd packet HB_ECHO = 2, ALARM/Reject packet  + pkt[7:28] := audio data (third 22 bytes)  
+;
+;
 */
 #define HBEAT_wAUDIO_PWR_OFF		(0xF0)
 #define HBEAT_wAUDIO_PWR_ON		(0xF1)
 #define HBEAT_wAUDIO_PWR_OFF_3		(0xA0)
 #define HBEAT_wAUDIO_PWR_ON_3		(0xA1)
+#define AUDIO_DATA						(0xB5)
+#define HBEAT_ACK						(0xC6)
+
 #pragma pack(push, 2)
 typedef struct {
 	uint16_t		HB_TAGID;		// TagId from EEPROM (0x8000 is a default value, if not initialized)
@@ -197,6 +207,10 @@ typedef struct {
 } gsd_hb_packet_t;
 #pragma pack(pop)
 
+#define RAM_FRAM_INFO	0x1800                
+// 1800-19FF FOR FR59x9
+
+
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 extern char prt_buf[32];
 
@@ -224,6 +238,7 @@ void rtc_load(void);
 void rtc_set_alarm(uint8_t bcd_hr, uint8_t bcd_min);
 void rtc_enable_alarm(void);
 void rtc_disable_alarm(void);
+void rtc_set_fake_time(void);
 void packet2calendar(uint8_t *packet);
 uint8_t * calendar2packet(uint8_t *packet);
 
@@ -239,7 +254,11 @@ void nRF905_RxDone(void);
 void nRF905_Rx(void);
 void nRF905_SetRTC(void);
 void nRF905_SetWkUpRTC(void);
+void nRF905_SetDtWakeUp(uint8_t hr, uint8_t min);
 void nRF905_sndRstHB(void);
+uint8_t getSendWfFlag(void);
+void nRF905_send_2nd(void);
+void nRF905_send_3rd(void);
 
 
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
@@ -264,5 +283,24 @@ void txTimerSet(uint8_t cnt);
 void txTimerStart(void);
 void txTimerStop(void);
 
+
+void setup_enter(void);
+void load_setup(void);
+void save_setup(void); 
+void init_setup(void);
+
+void flash_led0_red(void);
+void flash_led1_green(void);
+void rx_led1_green(void);
+void pwr_led0_red(void);
+
+
+#if GSD_FEATURE_ENABLED(DATA_PORT)
+
+void	dataPortInit(void);
+void vDataOut(uint8_t  *data, uint16_t len);
+void vWfDataOut(void);
+
+#endif //GSD_FEATURE_ENABLED(DATA_PORT)
 
 #endif /* GSD_H_ */

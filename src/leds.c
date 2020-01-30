@@ -55,3 +55,16 @@ void rx_led1_green(void)
 	}
 }
 
+void pwr_led0_red(void) 
+{
+/*	if (gsd_setup.RAMn_LED_ONFLG) */ {
+		uint8_t idx = 2;
+		while(idx--) {
+			GPIO_setOutputLowOnPin (GPIO_PORT_P2, GPIO_PIN6);
+			DelayMS(200);
+			GPIO_setOutputHighOnPin (GPIO_PORT_P2, GPIO_PIN6);
+			DelayMS(200);
+		}
+	}
+}
+

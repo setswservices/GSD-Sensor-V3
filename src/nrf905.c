@@ -24,6 +24,7 @@
 #define nRF905_MODE_TX						(0x80)
 
 
+
 //#pragma pack(push, 4)
 typedef struct {
 	uint16_t			ch_no;		// 0 - use default value	(108)	
@@ -66,6 +67,9 @@ static nRF905Config_t nRF905_conf;
 /* static */ uint8_t *spi_rx_ptr;
 /* static */ uint8_t spi_rx_idx;
 //#pragma DATA_ALIGN(xbuf, 2)
+static uint8_t  send_wf_flag = 0;
+static uint16_t  rf_dly = 400;
+static uint16_t  xmitsNo = 0;
 
 uint8_t xbuf[33];
 #if GSD_FEATURE_ENABLED(DEBUGGING_MENU)
@@ -244,6 +248,18 @@ static void nRF905_TxStart(void)
 	delay_ms(3);
 }
 
+
+static void load_wf(uint8_t *dst, unsigned long src )
+{
+	uint8_t idx;
+	for (idx=0; idx < 21; idx++) 
+	{
+		*dst = __data20_read_char(src);
+		dst++; src++;
+	}
+}
+
+	
 void nRF905_pwr_off(void)
 {
 	GPIO_setOutputLowOnPin(    	GPIO_PORT_P5, GPIO_PIN0 + GPIO_PIN1 + GPIO_PIN2);  // RF_TX_EN, RF_TX_CE, RF_PWRUP
@@ -327,10 +343,29 @@ void nRF905_Rx(void)
 void nRF905_SetRTC(void)
 {
 	gsd_hb_packet_t *hb_pkt = (gsd_hb_packet_t *)&xbuf[1];
+	uint8_t upd_flg = 0;
 
+//      vPrintString("\t->RX PKT FUNC:");  vPrintString(psUInt8HexToString(hb_pkt->HB_FUNCTION, prt_buf)); vPrintEOL();	
+//      vPrintString("\t->RX PKT MODE:");  vPrintString(psUInt8HexToString(hb_pkt->HB_MODE, prt_buf)); vPrintEOL();	
+//      vPrintString("\t->RX PKT FLG:");  vPrintString(psUInt8HexToString(hb_pkt->HB_ALRM_FLG, prt_buf)); vPrintEOL();	
+
+	if (hb_pkt->HB_ALRM_FLG == HBEAT_ACK) return;
+	
 	packet2calendar((uint8_t *)&hb_pkt->HB_RTC_LOW);
 	printDateTime();
 	rtc_load();
+
+#if GSD_FEATURE_ENABLED(SLEEP_TIME_SETUP_FROM_AGGREGATOR)
+#else
+/*=============*/
+hb_pkt->HB_PWRON_HR = gsd_setup.RAMn_ALRM1HR;
+hb_pkt->HB_PWRON_MIN = gsd_setup.RAMn_ALRM1MIN;
+hb_pkt->HB_PWROFF_HR = gsd_setup.RAMn_ALRM0HR;
+hb_pkt->HB_PWROFF_MIN = gsd_setup.RAMn_ALRM0MIN;
+//============= *
+#endif // GSD_FEATURE_ENABLED(SLEEP_TIME_SETUP_FROM_AGGREGATOR)
+	
+#if GSD_FEATURE_ENABLED(SLEEP_MODE)
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 		vPrintString("\tAlarm: ON=[0x");
 		vPrintString(psUInt8HexToString(hb_pkt->HB_PWRON_HR, prt_buf)); vPrintString(", 0x");
@@ -343,14 +378,35 @@ void nRF905_SetRTC(void)
 	rtc_set_alarm(hb_pkt->HB_PWROFF_HR, hb_pkt->HB_PWROFF_MIN);
 	dt_power_on[0] =  hb_pkt->HB_PWRON_HR;
 	dt_power_on[1]=  hb_pkt->HB_PWRON_MIN;
+#else // GSD_FEATURE_ENABLED(SLEEP_MODE)
+		vPrintString("\tAlarm: Disabled"); vPrintEOL();
+#endif // GSD_FEATURE_ENABLED(SLEEP_MODE)
+
+	if ( gsd_setup.RAMn_ALRM0HR != hb_pkt->HB_PWROFF_HR) { 	gsd_setup.RAMn_ALRM0HR = hb_pkt->HB_PWROFF_HR; upd_flg = 1;}
+	if ( gsd_setup.RAMn_ALRM0MIN != hb_pkt->HB_PWROFF_MIN) { gsd_setup.RAMn_ALRM0MIN = hb_pkt->HB_PWROFF_MIN; upd_flg =1; }
+	if ( gsd_setup.RAMn_ALRM1HR != hb_pkt->HB_PWRON_HR) { gsd_setup.RAMn_ALRM1HR = hb_pkt->HB_PWRON_HR; upd_flg = 1; }
+	if ( gsd_setup.RAMn_ALRM1MIN != hb_pkt->HB_PWRON_MIN) { gsd_setup.RAMn_ALRM1MIN = hb_pkt->HB_PWRON_MIN; upd_flg = 1; }
+	
+	if (upd_flg)
+		save_setup();
+
+#if GSD_FEATURE_ENABLED(SLEEP_MODE)
 	rtc_enable_alarm();
+#endif //GSD_FEATURE_ENABLED(SLEEP_MODE)
+
 	
 }
 
 void nRF905_SetWkUpRTC(void)
 {
+#if GSD_FEATURE_ENABLED(SLEEP_MODE)
 	rtc_set_alarm(dt_power_on[0], dt_power_on[1]);
 	rtc_enable_alarm();
+#endif //GSD_FEATURE_ENABLED(SLEEP_MODE)
+}
+void nRF905_SetDtWakeUp(uint8_t hr, uint8_t min)
+{
+	dt_power_on[0] = hr; dt_power_on[1] = min;
 }
 
 static void nRF905_Configure(void)
@@ -438,9 +494,17 @@ static void nRF905_Configure(void)
 #endif // GSD_FEATURE_ENABLED(DUMP_NRF905_CFG)
 }
 
+uint8_t getSendWfFlag(void)
+{ 
+	return send_wf_flag;
+}
+
 void nRF905_sndRstHB(void)
 {
 	gsd_hb_packet_t  *hb_pkt;
+
+	send_wf_flag = 0;
+	
 	if (!(gsd_tx_packet_type == 0 || gsd_tx_packet_type == 1 ||
 		gsd_tx_packet_type == HBEAT_wAUDIO_PWR_OFF_3 ||
 		gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3 
@@ -448,8 +512,12 @@ void nRF905_sndRstHB(void)
 	) return;
 
 	nRF905_pwr_on();
+	
+	rf_dly = (gsd_setup.RAMn_SLOT_DLYNo* gsd_setup.RAMn_RF_SLOTNo *10);
+	if (rf_dly < 300) rf_dly+=300;
 
-	DelayMS(500);
+
+	DelayMS(rf_dly);
 
 	nRF905_conf.ch_no = 108;
 	nRF905_conf.auto_retran = 0;
@@ -471,7 +539,7 @@ void nRF905_sndRstHB(void)
 	nRF905_conf.rx_address_high |= ((gsd_setup.RAMn_TAGID >> 8)&0xFF);
 	nRF905_Configure();
 
-	DelayMS(400);
+	DelayMS(100);
 
 	memset(xbuf, 0x00, 33);
 	xbuf[0] = nRF905_W_TX_PAYLOAD_CMD;
@@ -480,10 +548,51 @@ void nRF905_sndRstHB(void)
 	spi_rx_ptr = xbuf;
 
 	nRF905_TxStart();
-	
-	hb_pkt->HB_TAGID = gsd_setup.RAMn_TAGID;
-	hb_pkt->HB_ALRM_FLG = gsd_tx_packet_type;
 
+	hb_pkt->HB_TAGID = gsd_setup.RAMn_TAGID;
+	hb_pkt->HB_MODE = gsd_setup.RAMn_MODE;
+	hb_pkt->HB_ALRM_FLG = gsd_tx_packet_type;
+	
+//  vPrintString("\t->PKT:"); vPrintString(psUInt8HexToString(gsd_tx_packet_type, prt_buf)); vPrintEOL();
+      vPrintString("\t->PKT MODE:");  vPrintString(psUInt8HexToString(gsd_setup.RAMn_MODE, prt_buf)); vPrintEOL();	
+
+	if ((gsd_tx_packet_type == 0 || gsd_tx_packet_type == 1))
+	{
+		if ((gsd_setup.RAMn_MODE&0x04) == 0x04)
+		{
+			send_wf_flag = 0x1; 
+			// We'll send 3 packets with 24bytes from the FRAM every  
+		}else{
+			send_wf_flag = 0x3; 
+			// will skip sending other packets, and start audio ...
+		}
+	}
+
+	if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3)
+	{
+		xmitsNo = 0;
+	
+		hb_pkt->HB_ROOM_DSCR	= gsd_setup.RAMn_FLOORNo;
+		hb_pkt->HB_ROOM_No		= gsd_setup.RAMn_ROOMNo;
+		hb_pkt->HB_RF_SLOT_No	= gsd_setup.RAMn_RF_SLOTNo;
+		hb_pkt->HB_SYS_FLG		= gsd_setup.RAMn_STARTUP_FLG;
+		hb_pkt->HB_PWROFF_HR	= gsd_setup.RAMn_ALRM0HR;
+		hb_pkt->HB_PWRON_HR	= gsd_setup.RAMn_ALRM1HR;
+		hb_pkt->HB_PM_INTRV		= gsd_setup.RAMn_HBPM_INTERVAL;
+		hb_pkt->HB_AUDIO_THRSH	= gsd_setup.RAMn_DA01;
+		hb_pkt->HB_RF_DLY		= gsd_setup.RAMn_SLOT_DLYNo;
+		hb_pkt->HB_PWROFF_MIN	= gsd_setup.RAMn_ALRM0MIN;
+		hb_pkt->HB_PWRON_MIN	= gsd_setup.RAMn_ALRM1MIN;
+		hb_pkt->HB_ALRM_THRSH_LOW	= gsd_setup.RAMn_VAR_LMT0;
+		hb_pkt->HB_ALRM_THRSH_HIGH	= gsd_setup.RAMn_VAR_LMT2;
+		}
+
+	hb_pkt->HB_XMTS_No	= xmitsNo++;
+
+
+	if (send_wf_flag == 0x01) {
+		load_wf(&hb_pkt->HB_ROOM_DSCR, RAM_EXTENDED); // Load WF's 1st 24 bytes
+	}
 	
  	transactionDone();
 	WriteBytes(33);  // Load 32 bytes to the TX_PAYLOAD
@@ -500,6 +609,140 @@ void nRF905_sndRstHB(void)
 	GPIO_setOutputLowOnPin(    	GPIO_PORT_P5, GPIO_PIN1);  //  RF_TX_CE -> LOW
 
 
+
+}
+
+void nRF905_send_2nd(void)
+{
+	gsd_hb_packet_t  *hb_pkt;
+
+vPrintString("\t==> Send 2nd .."); vPrintEOL();
+	nRF905_pwr_on();
+
+	DelayMS(rf_dly);
+
+	nRF905_conf.ch_no = 108;
+	nRF905_conf.auto_retran = 0;
+	nRF905_conf.hfreq_pll = 0;
+	nRF905_conf.pa_pwr = 3;
+	nRF905_conf.rx_red_pwr = 0;
+	nRF905_conf.rx_afw = 4;
+	nRF905_conf.tx_afw = 4;
+	nRF905_conf.rx_pw = 32;
+	nRF905_conf.tx_pw = 32;
+	nRF905_conf.rx_address_low = 0xE7E7;
+	nRF905_conf.rx_address_high = 0xE7E7;
+	nRF905_conf.crc_mode = 1;
+	nRF905_conf.crc_en = 1;
+	nRF905_conf.xof = 3;  // 16MHz, not default 8MHz
+
+	nRF905_conf.rx_address_high = (gsd_setup.RAMn_TAGID&0xFF);
+	nRF905_conf.rx_address_high <<= 8;
+	nRF905_conf.rx_address_high |= ((gsd_setup.RAMn_TAGID >> 8)&0xFF);
+	nRF905_Configure();
+
+	DelayMS(100);
+
+	memset(xbuf, 0x00, 33);
+
+
+	xbuf[0] = nRF905_W_TX_PAYLOAD_CMD;
+	hb_pkt = (gsd_hb_packet_t  *)&xbuf[1];
+
+	spi_rx_ptr = xbuf;
+
+	nRF905_TxStart();
+
+	hb_pkt->HB_TAGID = gsd_setup.RAMn_TAGID;
+	hb_pkt->HB_MODE = gsd_setup.RAMn_MODE;
+	hb_pkt->HB_ALRM_FLG = gsd_tx_packet_type;
+	hb_pkt->HB_ECHO = 1;
+
+	load_wf(&hb_pkt->HB_ROOM_DSCR, RAM_EXTENDED +21); // Load WF's 2nd 21 bytes
+	send_wf_flag = 0x02;
+	
+ 	transactionDone();
+	WriteBytes(33);  // Load 32 bytes to the TX_PAYLOAD
+	transactionDone();
+
+    	GPIO_selectInterruptEdge( GPIO_PORT_P3, GPIO_PIN6, GPIO_LOW_TO_HIGH_TRANSITION);
+    	GPIO_clearInterrupt( GPIO_PORT_P3, GPIO_PIN6);
+
+   	nRF905_mode = nRF905_MODE_TX;
+	
+	GPIO_enableInterrupt( GPIO_PORT_P3, GPIO_PIN6);
+	GPIO_setOutputHighOnPin(    	GPIO_PORT_P5, GPIO_PIN1);  //  RF_TX_CE -> HIGH
+	_delay_cycles(80);
+	GPIO_setOutputLowOnPin(    	GPIO_PORT_P5, GPIO_PIN1);  //  RF_TX_CE -> LOW
+
+	
+
+}
+
+void nRF905_send_3rd(void)
+{
+	gsd_hb_packet_t  *hb_pkt;
+
+vPrintString("\t==> Send 3rd .."); vPrintEOL();
+	nRF905_pwr_on();
+
+	DelayMS(rf_dly);
+
+	nRF905_conf.ch_no = 108;
+	nRF905_conf.auto_retran = 0;
+	nRF905_conf.hfreq_pll = 0;
+	nRF905_conf.pa_pwr = 3;
+	nRF905_conf.rx_red_pwr = 0;
+	nRF905_conf.rx_afw = 4;
+	nRF905_conf.tx_afw = 4;
+	nRF905_conf.rx_pw = 32;
+	nRF905_conf.tx_pw = 32;
+	nRF905_conf.rx_address_low = 0xE7E7;
+	nRF905_conf.rx_address_high = 0xE7E7;
+	nRF905_conf.crc_mode = 1;
+	nRF905_conf.crc_en = 1;
+	nRF905_conf.xof = 3;  // 16MHz, not default 8MHz
+
+	nRF905_conf.rx_address_high = (gsd_setup.RAMn_TAGID&0xFF);
+	nRF905_conf.rx_address_high <<= 8;
+	nRF905_conf.rx_address_high |= ((gsd_setup.RAMn_TAGID >> 8)&0xFF);
+	nRF905_Configure();
+
+	DelayMS(100);
+
+	memset(xbuf, 0x00, 33);
+
+
+	xbuf[0] = nRF905_W_TX_PAYLOAD_CMD;
+	hb_pkt = (gsd_hb_packet_t  *)&xbuf[1];
+
+	spi_rx_ptr = xbuf;
+
+	nRF905_TxStart();
+
+	hb_pkt->HB_TAGID = gsd_setup.RAMn_TAGID;
+	hb_pkt->HB_MODE = gsd_setup.RAMn_MODE;
+	hb_pkt->HB_ALRM_FLG = gsd_tx_packet_type;
+	hb_pkt->HB_ECHO = 2;
+
+	load_wf(&hb_pkt->HB_ROOM_DSCR, RAM_EXTENDED +42); // Load WF's 3rd 21 bytes
+	send_wf_flag = 0x03;
+	
+ 	transactionDone();
+	WriteBytes(33);  // Load 32 bytes to the TX_PAYLOAD
+	transactionDone();
+
+    	GPIO_selectInterruptEdge( GPIO_PORT_P3, GPIO_PIN6, GPIO_LOW_TO_HIGH_TRANSITION);
+    	GPIO_clearInterrupt( GPIO_PORT_P3, GPIO_PIN6);
+
+   	nRF905_mode = nRF905_MODE_TX;
+	
+	GPIO_enableInterrupt( GPIO_PORT_P3, GPIO_PIN6);
+	GPIO_setOutputHighOnPin(    	GPIO_PORT_P5, GPIO_PIN1);  //  RF_TX_CE -> HIGH
+	_delay_cycles(80);
+	GPIO_setOutputLowOnPin(    	GPIO_PORT_P5, GPIO_PIN1);  //  RF_TX_CE -> LOW
+
+	
 
 }
 

@@ -28,6 +28,12 @@ void init_ports(void)
 	P1.7			RFID SCL (UCB0SCL)
 
 =========================*/	
+	// PowerOFF EEPROM.
+	GPIO_setAsOutputPin(    		GPIO_PORT_P1, GPIO_PIN5);
+	GPIO_setOutputHighOnPin (	GPIO_PORT_P1, GPIO_PIN5);
+	// RFID_SDA, RFID_Busy  -> high (until we not use RFID)
+	GPIO_setAsOutputPin(    		GPIO_PORT_P1, GPIO_PIN6+GPIO_PIN4);
+	GPIO_setOutputHighOnPin (	GPIO_PORT_P1, GPIO_PIN6+GPIO_PIN4);
 
 
 /* ========================
@@ -50,9 +56,9 @@ void init_ports(void)
 	P3.1			RF_MOSI (UCB1SIMO)
 	P3.2			RF_MISO (UCB1SOMI)
 	P3.3			??
-	P3.4			Host_Tx (UCA1TXD), *not use in this version*
-	P3.5			Host_Rx (UCA1RXD), *not use in this version*
-	P3.6			RF_DataRdy, input interrupt, ** not use yet**
+	P3.4			Host_Tx (UCA1TXD), 
+	P3.5			Host_Rx (UCA1RXD), 
+	P3.6			RF_DataRdy, input interrupt, 
 	P3.7			RF_CD, input interrupt, ** not use yet**
 
 =========================*/	
@@ -64,6 +70,9 @@ void init_ports(void)
 	P4.2			NC
 	P4.3			RF_On, output
 =========================*/	
+	// EEPROM SDA -> high
+	GPIO_setAsOutputPin(    		GPIO_PORT_P4, GPIO_PIN1);
+	GPIO_setOutputHighOnPin (	GPIO_PORT_P4, GPIO_PIN1);
 
 /* ========================
 	PORT 5:

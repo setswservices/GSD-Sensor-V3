@@ -109,6 +109,9 @@ void debugPortDisable(void)
 	EUSCI_A_UART_disable(EUSCI_A0_BASE);
 	GPIO_setAsInputPin(GPIO_PORT_P2, GPIO_PIN0);
 	GPIO_setAsInputPin(GPIO_PORT_P2, GPIO_PIN1);
+	
+	GPIO_setAsInputPin(GPIO_PORT_P3, GPIO_PIN4);
+	GPIO_setAsInputPin(GPIO_PORT_P3, GPIO_PIN5);
 }
 
 void vPrintString(char *str)
@@ -250,7 +253,7 @@ unsigned long uart_getHex(void)
 			}
 		}else
 		if (c == 0x0D) {
-			inBuf[idx] = '\0';
+		    inBuf[idx] = '\0';
 			vPrintEOL();
 			tmp = strtoul((char *)inBuf, NULL, 16);
 			return tmp;
@@ -267,6 +270,61 @@ unsigned long uart_getHex(void)
 		}
 	}
 }
+
+uint8_t uart_getHexTo(unsigned long *pOut) 
+{	
+	uint8_t inBuf[9];
+	uint8_t idx =0;
+	int c;
+
+	while(1) {
+		delay_ms(1);
+		c = uart_getchar();
+		if (c == 0) continue; 
+		if (c == CHAR_ESC)  return idx;
+		else
+		if (c == 0x08) {
+			if (idx) {
+				idx--;	
+				inBuf[idx] = '\0';
+				vPrintString("\b");
+			}
+		}else
+		if (c == 0x0D) {
+		    inBuf[idx] = '\0';
+			vPrintEOL();
+			*pOut = strtoul((char *)inBuf, NULL, 16);
+			return idx;
+		}else
+		if (_isxdigit(c)) {
+			vPrintChar(c);
+			inBuf[ idx] = (uint8_t)(c&0xFF);
+			idx++;
+			if (idx == 8) {
+				inBuf[ idx] = '\0';
+				*pOut = strtoul((char *)inBuf, NULL, 16);
+				return idx;
+			}
+		}
+	}
+	return 0;
+}
+
+uint8_t uart_getByte(void) 
+{	
+	uint8_t inBuf;
+	int c;
+
+	while(1) {
+		delay_ms(1);
+		c = uart_getchar();
+		if (c == 0) continue; 
+		if (c == CHAR_ESC)  return 0;
+		inBuf = (c&0xFF);
+		return inBuf;
+	}
+}
+
 
 //******************************************************************************
 //
