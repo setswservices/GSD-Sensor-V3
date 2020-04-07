@@ -10,8 +10,8 @@
 #endif //GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 
 
-const char Build_Date[] = __DATE__;
-const char Build_Time[] = __TIME__;
+//const char Build_Date[] = __DATE__;
+//const char Build_Time[] = __TIME__;
 
 /*********************************************
   *   GSD event flags
@@ -98,6 +98,10 @@ uint8_t audio_samples_4[NoAUDIO_SAMPLES_PER_CHANK];
 #pragma PERSISTENT(audio_samples_5);
 #pragma location = 0xBFC0 // memory address in FRAM
 uint8_t audio_samples_5[NoAUDIO_SAMPLES_PER_CHANK];	
+
+//#pragma RETAIN(JTAG_signatures)
+//#pragma DATA_SECTION(JTAG_signatures, ".jtagsignature")
+//const uint16_t JTAG_signatures[] = {0xdead, 0xbeef};
 
 
 static void EnterLPM3(void);
@@ -200,13 +204,16 @@ int main(void)
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 	debugPortInit();
 	vPrintEOL();
-	vPrintString(FIRMWARE_VERSION_STRING);
+//	vPrintString(FIRMWARE_VERSION_STRING);
+	printVersion();
+/*
 	vPrintString(" Build ");
 	vPrintString(Build_Date);
 	vPrintString(" ");
 	vPrintString(Build_Time);
 	vPrintEOL();
-	vPrintString("Start from ");
+*/	
+	vPrintString("\tStart from: ");
 	vPrintString((gsd_fw_startup == GSD_WAKEUP)? "wake up" : "reset");
 	vPrintEOL();
 #endif GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
@@ -225,6 +232,7 @@ int main(void)
   *********************************************/
 	gsd_tx_packet_type = HBEAT_wAUDIO_PWR_ON_3;
 	nRF905_sndRstHB();
+	DelayMS(3);
 
     	while (1)
     	{
@@ -232,6 +240,10 @@ int main(void)
 			vPrintString("\tAudio event");
 			vPrintEOL();
 			audioHandleAudioEvent();	
+			if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) 
+			{
+				nRF905_RxDone();
+			}
 			gsd_tx_packet_type = RAM_ALRM_FLG;
 			nRF905_sndRstHB();
 			if (gsd_tx_packet_type == 1 /* ALARM */)
@@ -252,9 +264,19 @@ int main(void)
 			gsd_tx_done_event = GSD_NO_EVENT;
 			if ((gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3) || (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_OFF_3))
 			{
+				DelayMS(3);
 				nRF905_RxStart();
-				rxTimerSet(0x6);
-				rxTimerStart();
+/*				if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == 0) */ {
+					
+					rxTimerSet(0x6);
+					rxTimerStart();
+				}
+/*
+				else {
+					vPrintString("\tRx Timer disabled");
+					vPrintEOL();
+				}
+*/
 			}else{
 				if (getSendWfFlag() == 0x01)  // we done with send a 1st packet with the WF data ..
 					nRF905_send_2nd();
@@ -264,7 +286,7 @@ int main(void)
 				else
 				if (getSendWfFlag() == 0x03)  {// we done with send a 3rd packet with the WF data ..
 #if GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
-					if ((gsd_setup.RAMn_MODE&0x08) == 0x08 && gsd_tx_packet_type == 1 /* ALARM */) {
+					if ((gsd_setup.RAMn_MODE&CODE_RUN_WITH_ACK) == CODE_RUN_WITH_ACK && gsd_tx_packet_type == 1 /* ALARM */) {
 						// Try read the ACK packet ..
 						nRF905_RxStart();
 						rxTimerSet(0x6);
@@ -272,26 +294,43 @@ int main(void)
 					}
 #endif // GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
 #if GSD_FEATURE_ENABLED(DATA_PORT)
-					if ((gsd_setup.RAMn_MODE&0x80) == 0x80) 
+					if ((gsd_setup.RAMn_MODE&CODE_RUN_FULL_DATA_OUT) == CODE_RUN_FULL_DATA_OUT) {
+						audioOFF();
 						vWfDataOut();
+						audioInit();
+					}
 #endif //GSD_FEATURE_ENABLED(DATA_PORT)
+					if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) 
+					{
+						nRF905_RxStart();
+					}
 #if GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
-					if ((gsd_setup.RAMn_MODE&0x08) == 0) 
+					if ((gsd_setup.RAMn_MODE&CODE_RUN_WITH_ACK) == 0) 
 #endif // GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
 					audioStart();
 				}
 			}
-			continue;
+			continue; 
     		}
 		if (gsd_rx_packet_event)
 		{
 			vPrintString("\tGot Rx Packet event");
 			vPrintEOL();
 			gsd_rx_packet_event = GSD_NO_EVENT;
-			rxTimerStop();
+//			if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == 0) 
+				rxTimerStop();
 			nRF905_Rx();
 			nRF905_SetRTC();
+			nRF905_put_setup();  // For PWR_ON packets only
 			nRF905_RxDone();
+			if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) 
+			{
+				rx_led1_green();
+				nRF905_RxStart();
+				gsd_tx_packet_type = 0xFF;
+				audioStart();
+				continue;
+			}
 			nRF905_pwr_off();
 			rx_led1_green();
 			if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_OFF_3)
@@ -308,21 +347,32 @@ int main(void)
 			vPrintEOL();
 			gsd_rx_timer_event = GSD_NO_EVENT;
 			rxTimerStop();
+/*
+			if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) 
+			{
+				continue;
+			}
+*/			
 			nRF905_RxDone();
 			nRF905_pwr_off();
-			if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3)
+			rx_fault();
+			if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3 || gsd_tx_packet_type == HBEAT_wAUDIO_PWR_OFF_3)
 			{
+#if 0
 				vPrintString("\tGoing to deep sleep for 1 hour");
 				vPrintEOL(); 				vPrintEOL();
 				rtc_set_fake_time();
-				nRF905_SetDtWakeUp(0x01, 0x00);
-// Sleep 1 minute, for debugging				nRF905_SetDtWakeUp(0x00, 0x01);
+ Sleep 1 hour		nRF905_SetDtWakeUp(0x01, 0x00);
+ Sleep 1 minute, for debugging    				nRF905_SetDtWakeUp(0x00, 0x01); */
 				EnterLPM35();
     				__no_operation();                         // For debugger, 'll *never* reach this point
-			}
+#endif			
+    				HWREG16(WDT_A_BASE + OFS_WDTCTL) |= WDTHOLD;  //Will reset MSP430,WDTIFG flag is set
+    				__no_operation();                         // For debugger, 'll *never* reach this point
+ 			}
 			
 #if GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
-			if ((gsd_setup.RAMn_MODE&0x08) == 0x08 && gsd_tx_packet_type == 1 /* ALARM */) {
+			if ((gsd_setup.RAMn_MODE&CODE_RUN_WITH_ACK) == CODE_RUN_WITH_ACK && gsd_tx_packet_type == 1 /* ALARM */) {
 				gsd_try_ack_packets_cnt++;
 				if (GSD_MAX_TRY_ACK >= gsd_try_ack_packets_cnt) 
 				{
@@ -332,17 +382,27 @@ int main(void)
 			}
 #endif //GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
 			
-			audioStart();
+// ???			audioStart();
 			continue;
     		}
     		if (gsd_rtc_event) {
 			vPrintString("\tRTC Alarm event");
 			vPrintEOL();
 			gsd_rtc_event = GSD_NO_EVENT;
+			if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) 
+			{
+				continue;
+			}
+#if GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
+				EnterLPM35();
+				while(1)
+    					__no_operation();                         // For debugger, 'll *never* reach this point
+#else
 			gsd_tx_packet_type = HBEAT_wAUDIO_PWR_OFF_3;
 			audio_int_disable();
 			audioOFF();
 			nRF905_sndRstHB();
+#endif //GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
 			continue;
     		}
     		if (gsd_uart_event) 
@@ -375,6 +435,21 @@ static void EnterLPM3(void)
 static void EnterLPM35(void)
 {  
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
+/* [ADK] 07/02/2020    - Debugging for PM modes */
+      if ((gsd_setup.RAMn_HBPM_INTERVAL & 0x20) == 0x20) {
+		vPrintString("\tAlarm mode - no weekend"); vPrintEOL();
+#if GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
+		vPrintString("\tTest for \"Today is Friday\" .."); vPrintEOL();
+#else
+	  	if (rtc_get_wday() == 0x05) {
+			vPrintString("\tToday is Friday .."); vPrintEOL();
+
+		}
+#endif //GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
+      	}
+      	
+	vPrintEOL();
+	vPrintEOL();
 	debugPortDisable();
 #endif // GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 	GPIO_setAsInputPin(    		GPIO_PORT_P2, GPIO_PIN2 + GPIO_PIN6 + GPIO_PIN7);
@@ -429,6 +504,11 @@ static void EnterLPM35(void)
 	HWREG16(WDT_A_BASE + OFS_WDTCTL) |= WDTHOLD;  //Will reset MSP430,WDTIFG flag is set
 #endif // GSD_FEATURE_ENABLED(LPM4)
 
+}
+
+void ResetHW(void)
+{
+	HWREG16(WDT_A_BASE + OFS_WDTCTL) |= WDTHOLD;  //Will reset MSP430,WDTIFG flag is set
 }
 
 static void WakeUpLPM35(void)

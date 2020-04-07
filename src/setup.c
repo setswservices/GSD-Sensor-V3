@@ -57,8 +57,8 @@ static void default_setup(void)
 	gsd_setup.RAMn_DA01			= 0x225;	// Detect Threshold, for LTC1662 DAC
 	gsd_setup.RAMn_VAR_LMT0		= 0x0000;  	
 	gsd_setup.RAMn_VAR_LMT2		= 0x0018;
-	gsd_setup.RAMn_ALRM0HR		= 0x19;	      // RTC Alarm setup hours for PWR OFF (to LPM3.5) in BCD
-	gsd_setup.RAMn_ALRM1HR		= 0x07;      //  RTC Alarm setup  hours for PWR ON (from PPM3.5) in BCD 		
+	gsd_setup.RAMn_ALRM0HR		= 0x17;	      // RTC Alarm setup hours for PWR OFF (to LPM3.5) in BCD
+	gsd_setup.RAMn_ALRM1HR		= 0x06;      //  RTC Alarm setup  hours for PWR ON (from PPM3.5) in BCD 		
 	gsd_setup.RAMn_HBPM_INTERVAL=0x24;  
 	gsd_setup.RAMn_LED_ONFLG	= 0xA5;
 	gsd_setup.RAMn_DEBUG		= 0xA5;
@@ -71,6 +71,10 @@ static void default_setup(void)
 	gsd_setup.RAMn_RF_FREQ		= 0x01;
 // [ADK] 11/11/2019  add RTC setup for restore it at wakeup from LPM3.5
 //	uint8_t		RAMn_RTC_PACK[4];		// in the packet format
+	gsd_setup.RAMn_FW_VERSION[0] = (uint8_t)(GSD_FW_VERSION&0xff);
+	gsd_setup.RAMn_FW_VERSION[1] = (uint8_t)((GSD_FW_VERSION>>8)&0xff);
+	gsd_setup.RAMn_FW_VERSION[2] = (uint8_t)((GSD_FW_VERSION>>16)&0xff);
+	gsd_setup.RAMn_FW_VERSION[3] = (uint8_t)((GSD_FW_VERSION>>24)&0xff);
 }
 
 static void vMoveCursorToBeginInput(void ) 
@@ -131,8 +135,8 @@ static void setup(void)
 		if (inData != gsd_setup.RAMn_FUNCTION) { gsd_setup.RAMn_FUNCTION= inData;  updFlg =1; }
 	}
 	   
-	vPrintString("RUN MODE (80=SND WF HW, 40=CALB ALRM TH, 04=SND TEST DATA RF"); vPrintEOL();
-	vPrintString("          02=SND EVENT RF, 01=SND ALRM ONLY RF)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_MODE, prt_buf)); vMoveCursorToBeginInput();
+	vPrintString("RUN MODE (80=SND WF HW, 40=CALB ALRM TH, 20=PNNL MODE"); vPrintEOL();
+	vPrintString("          04=SND 96BYTE WF RF, 02=SND EVENT RF, 01=SND ALRM ONLY RF)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_MODE, prt_buf)); vMoveCursorToBeginInput();
 	rc = uart_getHexTo(&inData);
 	if (rc) {
 		inData &=0xFF;
@@ -235,7 +239,7 @@ static void setup(void)
 
 	vPrintString("PM & HBEAT INTERVAL:"); vPrintEOL();
 	vPrintString("  PM (1X=DAILY,2X=MON-FRI,NO WEEKENDS)"); vPrintEOL();
-	vPrintString("  HB (X1=DAILY,X2=MON/WED/FRI,X4=MONDAY ONLY)"); vPrintEOL();
+//	vPrintString("  HB (X1=DAILY,X2=MON/WED/FRI,X4=MONDAY ONLY)"); vPrintEOL();
 	vPrintString("PM & HBEAT SETTING (~24)="); vPrintString(psUInt8HexToString(gsd_setup.RAMn_HBPM_INTERVAL, prt_buf)); vMoveCursorToBeginInput();
 	rc = uart_getHexTo(&inData);
 	if (rc) {
@@ -261,6 +265,39 @@ static void setup(void)
 		save_setup();
 }
 
+void put_setup(gsd_hb_packet_t  *hb_pkt)
+{
+	uint8_t updFlg = 0;
+	
+	if (hb_pkt->HB_TAGID == gsd_setup.RAMn_TAGID)
+	{
+// vPrintString("\t\t->Got a new Setup"); vPrintEOL();
+		if (hb_pkt->HB_MODE 			!= gsd_setup.RAMn_MODE) 			{ gsd_setup.RAMn_MODE = hb_pkt->HB_MODE; updFlg = 1; }
+// vPrintString("\t\t->Room des: pkt="); vPrintChar(hb_pkt->HB_ROOM_DSCR); vPrintString(", setup="); vPrintChar(gsd_setup.RAMn_FLOORNo);vPrintEOL();
+		if (hb_pkt->HB_ROOM_DSCR	!= gsd_setup.RAMn_FLOORNo) 			{ gsd_setup.RAMn_FLOORNo = hb_pkt->HB_ROOM_DSCR; updFlg = 1; }
+		if (hb_pkt->HB_ROOM_No		!= gsd_setup.RAMn_ROOMNo) 			{ gsd_setup.RAMn_ROOMNo = hb_pkt->HB_ROOM_No; updFlg = 1; }
+		if (hb_pkt->HB_RF_SLOT_No	!= gsd_setup.RAMn_RF_SLOTNo) 		{ gsd_setup.RAMn_RF_SLOTNo = hb_pkt->HB_RF_SLOT_No; updFlg = 1; }
+		if (hb_pkt->HB_SYS_FLG		!= gsd_setup.RAMn_STARTUP_FLG) 		{ gsd_setup.RAMn_STARTUP_FLG = hb_pkt->HB_SYS_FLG; updFlg = 1; }
+		if (hb_pkt->HB_PM_INTRV		!= gsd_setup.RAMn_HBPM_INTERVAL) 	{ gsd_setup.RAMn_HBPM_INTERVAL = hb_pkt->HB_PM_INTRV; updFlg = 1; }
+		if (hb_pkt->HB_AUDIO_THRSH	!= gsd_setup.RAMn_DA01) 				{ gsd_setup.RAMn_DA01 = hb_pkt->HB_AUDIO_THRSH; updFlg = 1; }
+		if (hb_pkt->HB_RF_DLY		!= gsd_setup.RAMn_SLOT_DLYNo) 		{ gsd_setup.RAMn_SLOT_DLYNo = hb_pkt->HB_RF_DLY; updFlg = 1; }
+		if (hb_pkt->HB_ALRM_THRSH_LOW	!= gsd_setup.RAMn_VAR_LMT0) 		{ gsd_setup.RAMn_VAR_LMT0 = hb_pkt->HB_ALRM_THRSH_LOW; updFlg = 1; }
+		if (hb_pkt->HB_ALRM_THRSH_HIGH	!= gsd_setup.RAMn_VAR_LMT2) 		{ gsd_setup.RAMn_VAR_LMT2 = hb_pkt->HB_ALRM_THRSH_HIGH; updFlg =1; }
+		
+		if (updFlg) { 
+			save_setup();
+//			if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) 
+			ResetHW();  // For apply new settings ..	
+		}
+
+	}else{
+		vPrintString("\t***ERROR***: Uncorrect TAGID ("); vPrintString(psUInt16HexToString(hb_pkt->HB_TAGID, prt_buf));
+		vPrintString("), HB pkt ignored.");
+		vPrintEOL();
+	}
+
+}
+
 void load_setup(void) 
 {
 	memcpy(&gsd_setup, RAM_FRAM_INFO, sizeof(gsd_setup_t));
@@ -278,13 +315,27 @@ void init_setup(void)
 //		vPrintString("INFOD is empty"); vPrintEOL();
 		default_setup();
 	}else{
-/*  No debug port at this moment yet ..
-		vPrintString("INFOD:");
-		vPrintString(psUInt16HexToString(*((uint16_t *)RAM_FRAM_INFO), prt_buf));
-		vPrintEOL();
-*/		
 		load_setup();
+		init_version();
 	}
+}
+void init_version(void)
+{
+	uint8_t upd = 0;
+	if (gsd_setup.RAMn_FW_VERSION[0] != (uint8_t)(GSD_FW_VERSION&0xff))
+		{ gsd_setup.RAMn_FW_VERSION[0] = (uint8_t)(GSD_FW_VERSION&0xff); upd = 1; }
+
+	if (gsd_setup.RAMn_FW_VERSION[1] != (uint8_t)((GSD_FW_VERSION>>8)&0xff))
+		{ gsd_setup.RAMn_FW_VERSION[1] = (uint8_t)((GSD_FW_VERSION>>8)&0xff); upd =1; }
+	
+	if (gsd_setup.RAMn_FW_VERSION[2] != (uint8_t)((GSD_FW_VERSION>>16)&0xff))
+		{ gsd_setup.RAMn_FW_VERSION[2] = (uint8_t)((GSD_FW_VERSION>>16)&0xff); upd =1; }
+	
+	if (gsd_setup.RAMn_FW_VERSION[3] != (uint8_t)((GSD_FW_VERSION>>24)&0xff))
+		{ gsd_setup.RAMn_FW_VERSION[3] = (uint8_t)((GSD_FW_VERSION>>24)&0xff); upd =1; }
+
+	if (upd) 
+		save_setup();
 }
 
 void setup_enter(void) 
@@ -302,6 +353,29 @@ void setup_enter(void)
 				setup();
 				break;
 			}else
+			if (c == CNTRL_P ) { 
+				uint8_t *pswd = 0xff80;
+				vPrintString("\t:");
+				vPrintString(psUInt8HexToString(pswd[0], prt_buf));
+				vPrintString(psUInt8HexToString(pswd[1], prt_buf));
+				vPrintString(psUInt8HexToString(pswd[2], prt_buf));
+				vPrintString(psUInt8HexToString(pswd[3], prt_buf));
+				vPrintString(psUInt8HexToString(pswd[4], prt_buf));
+				vPrintString(psUInt8HexToString(pswd[5], prt_buf));
+				vPrintString(psUInt8HexToString(pswd[6], prt_buf));
+				vPrintString(psUInt8HexToString(pswd[7], prt_buf));
+				vPrintEOL();
+				pswd[0] = 0xff; pswd[1] = 0xff; pswd[2] = 0xff; pswd[3] = 0xff;
+				pswd[4] = 0xff; pswd[5] = 0xff; pswd[6] = 0xff; pswd[7] = 0xff;
+				break;
+			}else
+#if GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
+			if (c == CNTRL_S ) { // For compatibility with ASM version
+//				vPrintString("\tSetup mode"); vPrintEOL();
+				dbgRtcSet();
+				break;
+			}else
+#endif //GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
 				cnt++;
 		}else
 			cnt++;

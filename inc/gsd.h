@@ -9,6 +9,7 @@
 #ifndef GSD_H_
 #define GSD_H_
 
+#include "gsd_version.h"
 #include "gsd_config.h"
 
 #define NoAUDIO_SAMPLES_PER_CHANK		(16*1024)
@@ -18,7 +19,6 @@
  *========================*/
 #define	GSD_RESET   	(0x01)
 #define   GSD_WAKEUP	(0x02)
-
 
 /*  === from EQU.ASM ====
   *  [ADK]  11/05/2019    Keep it "as is" ..
@@ -74,7 +74,31 @@ typedef struct {
 	uint8_t		RAMn_RF_FREQ;
 // [ADK] 11/11/2019  add RTC setup for restore it at wakeup from LPM3.5
 	uint8_t		RAMn_RTC_PACK[4];		// in the packet format
+// [ADK] 03/31/2020   add FW version
+	uint8_t		RAMn_FW_VERSION[4];
 } gsd_setup_t;
+
+/*  
+From 16_run.asm
+
+FUNCTION CODES
+CODE_RUN_woHBPM     .equ  00H             ;RUN woHBPM  
+CODE_RUN_wHB        .equ  01H             ;RUN wHB  
+CODE_RUN_wPM        .equ  02H             ;RUN wPM  
+CODE_RUN_wHBPM      .equ  04H             ;RUN wHB+PM
+CODE_DEEP_SLEEP     .equ  80H             ;FUNCTION-WAITING FOR INSTALLATION  WITH NFC
+CODE_RF_BEACON      .equ  10H             ;FUNCTION--SND OUT RF BEACON FOR 
+*/
+
+#define CODE_RUN_woHBPM			0x00
+#define CODE_RUN_wHB				0x01
+#define CODE_RUN_wPM				0x02
+#define CODE_RUN_SHORT_DATA_OUT	0x04
+#define CODE_RUN_WITH_ACK			0x08
+#define CODE_RUN_PNNL_MODE		0x20
+#define CODE_RUN_LIVE_TEST			0x40
+#define CODE_RUN_FULL_DATA_OUT	0x80
+
 
 #if 0
 // [ADK]  11/18/2019  - it is  new format for the HB packet.
@@ -119,8 +143,18 @@ typedef struct {
 ;                                                              *
 ;RF FORMAT FOR HEART BEAT MESSAGE                              *           
 ;  BYTE #  -00: TAG ID          (2 BYTES)                      *           
+; ----------------------------------------------*
 ;          -02: USB RF HB ECHO  (2 BYTES)                      *           
 ;                               (6666=RF ACK, 8888=RF SETUP)   *
+; ----------------------------------------------*
+;[ADK] 03/31/2020 - Replaced with:
+;	     For packet with ALRM/REJECT/HB FLG = F1H:
+;          -02: FW BUILD DATETIME (FIRST 2 BYTES, PACKED)  *           
+;	     For ALRM/REJECT/HB FLG = 00H | 01H and MODE_FLG=04H:
+;          -02: USB RF HB ECHO  (2 BYTES)                       *           
+;                               (#packet with short audio data)     *
+;	     Not in use othewise
+; ----------------------------------------------*
 ;          -04: FUNCTION        (00=RUN woHBEAT+POWER MGMT(PM) *
 ;                               (01=RUN wHBEAT)                *
 ;                               (02=RUN wPM)                   *
@@ -154,7 +188,15 @@ typedef struct {
 ;                  PM: 1X=DAILY,2X=MON-FRI                     *
 ;                  HB: X1=DAILY,X2=MON/WED/FRI,X4=MONDAY ONLY  *
 ;           0F: CALB ALRM SCALE FACTOR (SF)                    *
+; ----------------------------------------------*
 ;       #10-11: #RF XMTS (~# HBEATS)                           *
+; ----------------------------------------------*
+;[ADK] 03/31/2020 - Replaced with:
+;	     For packet with ALRM/REJECT/HB FLG = F1H:
+;       #10-11: FW BUILD DATETIME (LAST 2 BYTES, PACKED)           *
+;	 All other cases:
+;       #10-11: #RF XMTS (~# HBEATS)                           *
+; ----------------------------------------------*
 ;       #12-13: AUDIO DETECTION THRESHOLD--D/A  (0800-1023)    *
 ;           14: 00H                                            *
 ;           15: 00H                                            *
@@ -182,7 +224,9 @@ typedef struct {
 #pragma pack(push, 2)
 typedef struct {
 	uint16_t		HB_TAGID;		// TagId from EEPROM (0x8000 is a default value, if not initialized)
-	uint16_t		HB_ECHO;
+// [ADK] 03/31/2020	uint16_t		HB_ECHO;
+	uint8_t		HB_FW_VERSION;
+	uint8_t		HB_ECHO;
 	uint8_t		HB_FUNCTION;
 	uint8_t		HB_MODE;
 	uint8_t		HB_ALRM_FLG;
@@ -210,6 +254,7 @@ typedef struct {
 #define RAM_FRAM_INFO	0x1800                
 // 1800-19FF FOR FR59x9
 
+void ResetHW(void);
 
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 extern char prt_buf[32];
@@ -241,7 +286,8 @@ void rtc_disable_alarm(void);
 void rtc_set_fake_time(void);
 void packet2calendar(uint8_t *packet);
 uint8_t * calendar2packet(uint8_t *packet);
-
+uint8_t  rtc_get_wday(void);
+void printVersion(void);
 
 // === nRF905 related ..
 void initPortRF(void); 
@@ -259,6 +305,7 @@ void nRF905_sndRstHB(void);
 uint8_t getSendWfFlag(void);
 void nRF905_send_2nd(void);
 void nRF905_send_3rd(void);
+void nRF905_put_setup(void);
 
 
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
@@ -288,11 +335,14 @@ void setup_enter(void);
 void load_setup(void);
 void save_setup(void); 
 void init_setup(void);
+void init_version(void);
+void put_setup(gsd_hb_packet_t  *hb_pkt);
 
 void flash_led0_red(void);
 void flash_led1_green(void);
 void rx_led1_green(void);
 void pwr_led0_red(void);
+void rx_fault(void) ;
 
 
 #if GSD_FEATURE_ENABLED(DATA_PORT)
@@ -302,5 +352,9 @@ void vDataOut(uint8_t  *data, uint16_t len);
 void vWfDataOut(void);
 
 #endif //GSD_FEATURE_ENABLED(DATA_PORT)
+#if GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
+int dbgRtcSet(void);
+
+#endif //GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
 
 #endif /* GSD_H_ */

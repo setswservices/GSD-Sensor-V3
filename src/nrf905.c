@@ -393,14 +393,40 @@ hb_pkt->HB_PWROFF_MIN = gsd_setup.RAMn_ALRM0MIN;
 #if GSD_FEATURE_ENABLED(SLEEP_MODE)
 	rtc_enable_alarm();
 #endif //GSD_FEATURE_ENABLED(SLEEP_MODE)
+}
 
-	
+void nRF905_put_setup(void)
+{
+	gsd_hb_packet_t *hb_pkt = (gsd_hb_packet_t *)&xbuf[1];
+	if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) 
+		gsd_tx_packet_type = hb_pkt->HB_ALRM_FLG;
+
+	if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3)
+	{
+		put_setup(hb_pkt);
+	}
 }
 
 void nRF905_SetWkUpRTC(void)
 {
 #if GSD_FEATURE_ENABLED(SLEEP_MODE)
-	rtc_set_alarm(dt_power_on[0], dt_power_on[1]);
+      if ((gsd_setup.RAMn_HBPM_INTERVAL & 0x20) == 0x20) {
+// -- the UART disabled at this time		vPrintString("\tAlarm mode - no weekend"); vPrintEOL();
+#if GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
+		rtc_set_alarm_monday(dt_power_on[0], dt_power_on[1]);
+#else
+	 	if (rtc_get_wday() == 0x05)
+		{
+// -- the UART disabled at this time			vPrintString("\t\tToday is Friday .."); vPrintEOL();
+			rtc_set_alarm_monday(dt_power_on[0], dt_power_on[1]);
+	  	}
+		else	
+			rtc_set_alarm(dt_power_on[0], dt_power_on[1]);
+#endif //GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
+		
+	  }
+	  else	
+		rtc_set_alarm(dt_power_on[0], dt_power_on[1]);
 	rtc_enable_alarm();
 #endif //GSD_FEATURE_ENABLED(SLEEP_MODE)
 }
@@ -554,11 +580,12 @@ void nRF905_sndRstHB(void)
 	hb_pkt->HB_ALRM_FLG = gsd_tx_packet_type;
 	
 //  vPrintString("\t->PKT:"); vPrintString(psUInt8HexToString(gsd_tx_packet_type, prt_buf)); vPrintEOL();
+      vPrintString("\t->ID:");  vPrintString(psUInt16HexToString(hb_pkt->HB_TAGID, prt_buf)); vPrintEOL();	
       vPrintString("\t->PKT MODE:");  vPrintString(psUInt8HexToString(gsd_setup.RAMn_MODE, prt_buf)); vPrintEOL();	
 
 	if ((gsd_tx_packet_type == 0 || gsd_tx_packet_type == 1))
 	{
-		if ((gsd_setup.RAMn_MODE&0x04) == 0x04)
+		if ((gsd_setup.RAMn_MODE&CODE_RUN_SHORT_DATA_OUT) == CODE_RUN_SHORT_DATA_OUT)
 		{
 			send_wf_flag = 0x1; 
 			// We'll send 3 packets with 24bytes from the FRAM every  
@@ -568,9 +595,10 @@ void nRF905_sndRstHB(void)
 		}
 	}
 
-	if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3)
+	if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3 || gsd_tx_packet_type == HBEAT_wAUDIO_PWR_OFF_3)
 	{
-		xmitsNo = 0;
+		if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3)
+			xmitsNo = 0;
 	
 		hb_pkt->HB_ROOM_DSCR	= gsd_setup.RAMn_FLOORNo;
 		hb_pkt->HB_ROOM_No		= gsd_setup.RAMn_ROOMNo;

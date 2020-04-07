@@ -9,6 +9,7 @@
 #ifndef GSD_CONFIG_H_
 #define GSD_CONFIG_H_
 
+typedef unsigned char uint8_t;
 #include "chars.h"
 
 #define FW_MAJ_REV       03 		 // major rev for substantial changes or releases
@@ -34,6 +35,9 @@
 
 // RAM_EXTENDED     .equ  10000H              ;10000H-23FFFF=82K FOR FR5989    
 #define RAM_EXTENDED     ((unsigned long)0x10000)
+#ifdef __ASM__
+#undef RAM_EXTENDED
+#endif
 #define GSD_MAX_TRY_ACK			(3)
 // No_LED_PULSES .equ    05                  ;# 10ms ON/OFF TO MAKE 200ms DURATION
 #define No_LED_PULSES 	(05)             
@@ -50,7 +54,7 @@
 #define DATA_PORT_ENABLED						1
 #define HBEAT_ACK_PACKET_ENABLED				1
 /* ====================================
-  *  [ADK]  01/14/2020: LPM4 - 0.5uA for the CPU. We can't use it becouse the can't control +V_Audio
+  *  [ADK]  01/14/2020: LPM4 - 0.5uA for the CPU. We can't use it becouse the can't control +V_Audio. [ADK] 02/10/2020  - We can control GPIO pins, it "locked" 
   *                               LPM3 - 0.7uA - we can control GPIO pins.
   *  					 Use  LPM3 for 01/14/2020 
 */
@@ -60,6 +64,14 @@
 */
 #define SLEEP_MODE_ENABLED					1
 #define SLEEP_TIME_SETUP_FROM_AGGREGATOR_ENABLED		1
+
+/* ====================================
+  *  [ADK]  02/10/2020: Use this a debug mode for test deep sleep ans wakeup over weekend:
+  *                               - Hit Ctrl-C, then Ctrl-S - and setup RTC to a Sunday with time 23:57
+  *  					 -  Setup Alarm OFF to 23:59
+  *                               -  Setup Aklarm ON to 00:02
+*/
+#define DEBUG_RTC_SETUP_ENABLED		0
 
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 #define DEBUGGING_MENU_ENABLED				1

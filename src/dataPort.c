@@ -15,6 +15,8 @@
 #include "chars.h"
 
 #if GSD_FEATURE_ENABLED(DATA_PORT)
+extern gsd_setup_t gsd_setup;
+extern uint8_t *xbuf;
 
 //RAM_FRAM          .equ  0BFC0H            ;BFC0 + 4000=FFC0 (EXTRA 16K)
 #define RAM_FRAM    0x0BFC0           
@@ -36,9 +38,18 @@ void	dataPortInit(void)
     // Configure UART
     EUSCI_A_UART_initParam param = {0};
     param.selectClockSource = EUSCI_A_UART_CLOCKSOURCE_SMCLK;
-    param.clockPrescalar = 4;
-    param.firstModReg = 5;
-    param.secondModReg = 85;
+    if ((gsd_setup.RAMn_FUNCTION&CODE_RUN_PNNL_MODE) == CODE_RUN_PNNL_MODE) 
+    {
+    	// [ADK] 03/03/2020   57600
+    	param.clockPrescalar = 8;
+    	param.firstModReg = 10;
+    	param.secondModReg = 0xF7;
+    }else{
+    	// [ADK] 03/03/2020   115200
+    	param.clockPrescalar = 4;
+    	param.firstModReg = 5;
+    	param.secondModReg = 85;
+    }
     param.parity = EUSCI_A_UART_NO_PARITY;
     param.msborLsbFirst = EUSCI_A_UART_LSB_FIRST;
     param.numberofStopBits = EUSCI_A_UART_ONE_STOP_BIT;
@@ -98,9 +109,19 @@ void vWfDataOut(void)
 	dataPortInit();
 
 	vPrintString("> ");
+    	if ((gsd_setup.RAMn_FUNCTION&CODE_RUN_PNNL_MODE) == CODE_RUN_PNNL_MODE) 
+    	{
+    		strcpy(prt_buf, "  H");
+		data_uart_write(0, prt_buf, 3);
+		prt_buf[0] = 0x55;
+		prt_buf[1] = 0x55;
+		data_uart_write(0, prt_buf, 2);
+    	}
+	
 	for(idx = 0; idx < 80; fram2+= 1024, idx++)
 	{
 		data_port_write_fram(0, fram2, 1024);
+		DelayMS(10);
 		vPrintString(psUInt16ToString(idx, prt_buf));
 		vMoveCursorBack();
 	}
@@ -108,9 +129,21 @@ void vWfDataOut(void)
 	for(idx = 0; idx < 16; fram+= 1024, idx++)
 	{
 		data_uart_write(0, fram, 1024);
+		DelayMS(10);
 		vPrintString(psUInt16ToString((idx + 80), prt_buf));
 		vMoveCursorBack();
 	}
+
+    	if ((gsd_setup.RAMn_FUNCTION&CODE_RUN_PNNL_MODE) == CODE_RUN_PNNL_MODE) 
+    	{
+    		strcpy(prt_buf, ",,");
+		data_uart_write(0, prt_buf, 2);
+		data_uart_write(0, (const char *)(xbuf+1), 32);
+		prt_buf[0] = 0xAA;
+		prt_buf[1] = 0xAA;
+		prt_buf[2] = 'H';
+		data_uart_write(0, prt_buf, 3);
+    	}
 
 	vPrintEOL(); vPrintEOL();
 

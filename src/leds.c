@@ -68,3 +68,16 @@ void pwr_led0_red(void)
 	}
 }
 
+void rx_fault(void) 
+{
+		uint8_t idx = 3;
+		GPIO_setOutputLowOnPin (GPIO_PORT_P2, GPIO_PIN6);
+		DelayMS(200);
+		while(idx--) {
+			GPIO_setOutputLowOnPin (GPIO_PORT_P2, GPIO_PIN7);
+			DelayMS(200);
+			GPIO_setOutputHighOnPin (GPIO_PORT_P2, GPIO_PIN7);
+			DelayMS(200);
+		}
+		GPIO_setOutputHighOnPin (GPIO_PORT_P2, GPIO_PIN6);
+}

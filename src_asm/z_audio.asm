@@ -1,6 +1,6 @@
 
-	.cdecls C,NOLIST, "msp430.h", "gsd_config.h"      ; Processor specific definitions
-        
+	.cdecls C,NOLIST, "msp430.h", "gsd_asm.h", "gsd_config.h"      ; Processor specific definitions
+
 	.global ANALYZE_AUDIO_EVENT_FINAL
 
 AX0 .equ R4 

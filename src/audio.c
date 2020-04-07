@@ -186,9 +186,11 @@ void audioSetThs(void)
 	DelayMS(200);
 //	LTC1662Setup(d);
 #endif //0
-
-	d[0] = 0xD0;
-	d[1] = 0x00;
+//	d[0] = 0xD0;
+//	d[1] = 0x00;
+	d[0] = (((gsd_setup.RAMn_DA01<<2) &0xFF00) >>8);
+	d[0] |= 0xF0;
+	d[1] = ((gsd_setup.RAMn_DA01<<2) &0x00FF);
 	LTC1662Setup(d);
 //	printf("Not implemented (see R10/R11)\r\n");
 }

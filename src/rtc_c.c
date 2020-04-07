@@ -33,6 +33,7 @@
 #define TM_MON_DEC 11
 
 extern uint8_t  gsd_rtc_event;
+extern gsd_setup_t	gsd_setup;
 
 static   Calendar currentTime;
 static RTC_C_configureCalendarAlarmParam  alrm_params;
@@ -139,6 +140,29 @@ void rtc_set_alarm(uint8_t bcd_hr, uint8_t bcd_min)
 	RTC_C_configureCalendarAlarm(RTC_C_BASE, &alrm_params);
 
 
+}
+
+void rtc_set_alarm_monday(uint8_t bcd_hr, uint8_t bcd_min)
+{
+	memset(&alrm_params, 0, sizeof(RTC_C_configureCalendarAlarmParam));
+	alrm_params.dayOfWeekAlarm = 0x80;
+	alrm_params.dayOfMonthAlarm= 0x80;
+	alrm_params.hoursAlarm= 0x80;
+	alrm_params.minutesAlarm= 0x80;
+	
+	RTC_C_configureCalendarAlarm(RTC_C_BASE, &alrm_params);
+	RTC_C_disableInterrupt(RTC_C_BASE, (RTCOFIE + RTCTEVIE + RTCAIE + RTCRDYIE));
+       RTC_C_clearInterrupt(RTC_C_BASE, (RTC_C_TIME_EVENT_INTERRUPT + RTC_C_CLOCK_ALARM_INTERRUPT + RTC_C_CLOCK_READ_READY_INTERRUPT + RTC_C_OSCILLATOR_FAULT_INTERRUPT)); 
+	alrm_params.dayOfWeekAlarm = TM_WDAY_MON;
+	alrm_params.hoursAlarm= bcd_hr;
+	alrm_params.minutesAlarm= bcd_min;
+	RTC_C_configureCalendarAlarm(RTC_C_BASE, &alrm_params);
+
+
+}
+uint8_t  rtc_get_wday(void)
+{
+	return currentTime.DayOfWeek;
 }
 
 void rtc_set_fake_time(void)
@@ -381,6 +405,147 @@ int menuRtcChkAlrm(void *menu, void *item, void *args)
 }
 #endif // GSD_FEATURE_ENABLED(DEBUGGING_MENU)
 
+#if GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
+int dbgRtcSet(void)
+{
+	unsigned long tmp;
+	uint16_t  bin_val, bcd_val;	
+	uint8_t dt_h, dt_m;
+
+	vPrintEOL();
+	vPrintString("Enter"); vPrintEOL();
+	vPrintString("\tYear: ");
+	tmp = uart_getInt();
+	bin_val = (uint16_t)(tmp&0xFFFF);
+	bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+	rtc_set_year(bcd_val);
+
+	while(1) 
+	{
+		vPrintString("\tMonth [1-12]: ");
+		tmp = uart_getInt();
+		bin_val = (uint16_t)(tmp&0xFFFF);
+		if (bin_val >= 1 && bin_val <=12) break;  
+	}
+	bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+	rtc_set_month(bcd_val);
+	
+	while(1) 
+	{
+		vPrintString("\tDay [1-31]: ");
+		tmp = uart_getInt();
+		bin_val = (uint16_t)(tmp&0xFFFF);
+		if (bin_val >= 1 && bin_val <=31) break;  
+	}
+	bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+	rtc_set_day(bcd_val);
+	
+	while(1) 
+	{
+		vPrintString("\tHours [0-23]: ");
+		tmp = uart_getInt();
+		bin_val = (uint16_t)(tmp&0xFFFF);
+		if (bin_val <=23) break;  
+	}
+	bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+	rtc_set_hours(bcd_val);
+
+	while(1) 
+	{
+		vPrintString("\tMinutes [0-59]: ");
+		tmp = uart_getInt();
+		bin_val = (uint16_t)(tmp&0xFFFF);
+		if (bin_val <=59) break;  
+	}
+	bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+	rtc_set_min(bcd_val);
+
+	tm_get_wyday();
+	currentTime.Seconds = 0;
+
+//	vPrintEOL();
+//	vPrintString("\tUse CRTL_L for load RTC with the following date/time:"); 
+	printDateTime();
+	rtc_load();
+
+	memset(&alrm_params, 0, sizeof(RTC_C_configureCalendarAlarmParam));
+	alrm_params.dayOfWeekAlarm = 0x80;
+	alrm_params.dayOfMonthAlarm= 0x80;
+	alrm_params.hoursAlarm= 0x80;
+	alrm_params.minutesAlarm= 0x80;
+	
+	RTC_C_configureCalendarAlarm(RTC_C_BASE, &alrm_params);
+	RTC_C_disableInterrupt(RTC_C_BASE, (RTCOFIE + RTCTEVIE + RTCAIE + RTCRDYIE));
+       RTC_C_clearInterrupt(RTC_C_BASE, (RTC_C_TIME_EVENT_INTERRUPT + RTC_C_CLOCK_ALARM_INTERRUPT + RTC_C_CLOCK_READ_READY_INTERRUPT + RTC_C_OSCILLATOR_FAULT_INTERRUPT)); 
+	
+	vPrintEOL();
+	vPrintString("Eneter alarm (OFF)\r\n\tDay of week: ");
+	tmp = uart_getInt();
+	if (tmp) {
+		bin_val = (uint16_t)(tmp&0xFFFF);
+		bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+		alrm_params.dayOfWeekAlarm = bcd_val;
+	}else
+		alrm_params.dayOfWeekAlarm = 0x80;
+	
+	vPrintString("\tDay of month: ");
+	tmp = uart_getInt();
+	if (tmp) {
+		bin_val = (uint16_t)(tmp&0xFFFF);
+		bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+		alrm_params.dayOfMonthAlarm= bcd_val;
+	}else
+		alrm_params.dayOfMonthAlarm= 0x80;
+	
+	vPrintString("\tHours: ");
+	tmp = uart_getInt();
+	if (tmp) {
+		bin_val = (uint16_t)(tmp&0xFFFF);
+		bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+		alrm_params.hoursAlarm= bcd_val;
+	}else
+		alrm_params.hoursAlarm= 0x80;
+	
+	vPrintString("\tMinutes: ");
+	tmp = uart_getInt();
+	if (tmp) {
+		bin_val = (uint16_t)(tmp&0xFFFF);
+		bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+		alrm_params.minutesAlarm= bcd_val;
+	}else
+		alrm_params.minutesAlarm= 0x80;
+
+
+	vPrintEOL();
+	vPrintString("Eneter alarm (ON)\r\n");
+	vPrintString("\tHours: ");
+	tmp = uart_getInt();
+	if (tmp) {
+		bin_val = (uint16_t)(tmp&0xFFFF);
+		bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+		dt_h= bcd_val;
+	}else
+		dt_h = 0x00;
+	
+	vPrintString("\tMinutes: ");
+	tmp = uart_getInt();
+	if (tmp) {
+		bin_val = (uint16_t)(tmp&0xFFFF);
+		bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+		dt_m = bcd_val;
+	}else
+		dt_m = 0x00;
+	
+	nRF905_SetDtWakeUp(dt_h, dt_m);
+
+	RTC_C_configureCalendarAlarm(RTC_C_BASE, &alrm_params);
+
+	RTC_C_enableInterrupt(RTC_C_BASE, RTCAIE);
+
+
+}
+#endif // GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
+
 /* *** Date/Time convert routines ****
 There are two Date/Time formats use in the FW in additions to the BCD Calendar:
 	- I2C EEPROM Format
@@ -448,6 +613,44 @@ uint8_t *calendar2eeprom(uint8_t *eeprom)
 	return eeprom;
 }
 
+void printVersion(void)
+{
+	uint16_t  bin_val;	
+	uint8_t *packet = &gsd_setup.RAMn_FW_VERSION[0];
+	
+	vPrintString("\tBuild ");
+	bin_val = (((packet[0]&0xC0) >>6) |(((packet[1]&0xC0 )>>4))) ;
+	vPrintString(psUInt16ToString(bin_val, prt_buf));
+	vPrintChar('/');
+
+	bin_val = (packet[3]&0x1F);
+	vPrintString(psUInt16ToString(bin_val, prt_buf));
+	vPrintChar('/');
+
+	bin_val = (((packet[ 2]&0xE0) >>5) |(((packet[3]&0xE0 )>>2)));
+	bin_val += 2000;
+	vPrintString(psUInt16ToString(bin_val, prt_buf));
+	vPrintChar(' ');
+
+	bin_val = (packet[2]&0x1F);
+	vPrintString(psUInt16ToString(bin_val, prt_buf));
+	vPrintChar(':');
+
+	bin_val = (packet[1]&0x3F);
+	vPrintString(psUInt16ToString(bin_val, prt_buf));
+	vPrintChar(':');
+
+	bin_val = (packet[0]&0x3F);
+	vPrintString(psUInt16ToString(bin_val, prt_buf));
+	vPrintChar('(');
+	vPrintString(psUInt8HexToString(packet[3], prt_buf));
+	vPrintString(psUInt8HexToString(packet[2], prt_buf));
+	vPrintString(psUInt8HexToString(packet[1], prt_buf));
+	vPrintString(psUInt8HexToString(packet[0], prt_buf));
+	vPrintChar(')');
+	vPrintEOL();
+}
+
 // Need load RTC from currentTime *after* call for this function.
 void packet2calendar(uint8_t *packet)
 {
@@ -466,9 +669,9 @@ void packet2calendar(uint8_t *packet)
 	bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
 	rtc_set_hours((uint8_t)(bcd_val&0xFF));
 
-	bin_val = (packet[2]&0x1F);
-	bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
-	rtc_set_hours((uint8_t)(bcd_val&0xFF));
+//	bin_val = (packet[2]&0x1F);
+//	bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
+//	rtc_set_hours((uint8_t)(bcd_val&0xFF));
 	
 	bin_val = (packet[3]&0x1F);
 	bcd_val = RTC_C_convertBinaryToBCD (RTC_C_BASE, bin_val);
