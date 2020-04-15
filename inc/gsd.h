@@ -224,9 +224,7 @@ typedef struct {
 #pragma pack(push, 2)
 typedef struct {
 	uint16_t		HB_TAGID;		// TagId from EEPROM (0x8000 is a default value, if not initialized)
-// [ADK] 03/31/2020	uint16_t		HB_ECHO;
-	uint8_t		HB_FW_VERSION;
-	uint8_t		HB_ECHO;
+	uint16_t		HB_ECHO;
 	uint8_t		HB_FUNCTION;
 	uint8_t		HB_MODE;
 	uint8_t		HB_ALRM_FLG;

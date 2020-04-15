@@ -598,7 +598,7 @@ void nRF905_sndRstHB(void)
 	if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3 || gsd_tx_packet_type == HBEAT_wAUDIO_PWR_OFF_3)
 	{
 		if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3)
-			xmitsNo = 0;
+			xmitsNo = 1;
 	
 		hb_pkt->HB_ROOM_DSCR	= gsd_setup.RAMn_FLOORNo;
 		hb_pkt->HB_ROOM_No		= gsd_setup.RAMn_ROOMNo;
@@ -615,7 +615,13 @@ void nRF905_sndRstHB(void)
 		hb_pkt->HB_ALRM_THRSH_HIGH	= gsd_setup.RAMn_VAR_LMT2;
 		}
 
-	hb_pkt->HB_XMTS_No	= xmitsNo++;
+	if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3)
+	{
+		hb_pkt->HB_ECHO = (uint16_t)(GSD_FW_VERSION&0xFFFF);
+		hb_pkt->HB_XMTS_No = (uint16_t)((GSD_FW_VERSION>>16)&0xFFFF);
+	}
+	else	
+		hb_pkt->HB_XMTS_No	= xmitsNo++;
 
 
 	if (send_wf_flag == 0x01) {
@@ -635,7 +641,7 @@ void nRF905_sndRstHB(void)
 	GPIO_setOutputHighOnPin(    	GPIO_PORT_P5, GPIO_PIN1);  //  RF_TX_CE -> HIGH
 	_delay_cycles(80);
 	GPIO_setOutputLowOnPin(    	GPIO_PORT_P5, GPIO_PIN1);  //  RF_TX_CE -> LOW
-
+	
 
 
 }
