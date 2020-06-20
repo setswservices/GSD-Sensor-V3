@@ -46,7 +46,7 @@ static void default_setup(void)
               .word     6000H               ;RAMn_RFTOUT x 100us ~ 2 SECS (WORD)
               .byte     01H                 ;RAMn_RF_FREQ (02=434.7, 01=433.2, 00=430.0)
 === */              
-	gsd_setup.RAMn_TAGID 		= 0x0080;
+	gsd_setup.RAMn_TAGID 		= 0x8000;
 	gsd_setup.RAMn_FUNCTION		= 0x1;
 	gsd_setup.RAMn_MODE		= 0x1;
 	gsd_setup.RAMn_ROOMNo		= 0x4D2;
@@ -271,6 +271,16 @@ void put_setup(gsd_hb_packet_t  *hb_pkt)
 	
 	if (hb_pkt->HB_TAGID == gsd_setup.RAMn_TAGID)
 	{
+
+/*  [ADK]  06/19/2020   Excluded for now  ====
+		if (gsd_setup.RAMn_FW_VERSION[0] != 0x0b)  
+		{
+			// Old version not supported change for ID.
+			vPrintString("\t\t->NewID:"); vPrintString(psUInt16HexToString(hb_pkt->HB_ECHO, prt_buf)); vPrintEOL();
+//			vPrintString("\t\t->Check for new ID"); vPrintEOL();
+			
+		}
+=====  */		
 // vPrintString("\t\t->Got a new Setup"); vPrintEOL();
 		if (hb_pkt->HB_MODE 			!= gsd_setup.RAMn_MODE) 			{ gsd_setup.RAMn_MODE = hb_pkt->HB_MODE; updFlg = 1; }
 // vPrintString("\t\t->Room des: pkt="); vPrintChar(hb_pkt->HB_ROOM_DSCR); vPrintString(", setup="); vPrintChar(gsd_setup.RAMn_FLOORNo);vPrintEOL();
@@ -341,10 +351,13 @@ void init_version(void)
 void setup_enter(void) 
 {
 	uint16_t cnt = 0;    
-	int c;
+	int c = 0;
 
+	uart_cleanRXData();
+	
 	while(cnt < 2000 ) 
 	{
+		c = 0;
 		delay_ms(1);
 		if (c = uart_getchar()) 
 		{
@@ -376,6 +389,17 @@ void setup_enter(void)
 				break;
 			}else
 #endif //GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
+#if GSD_FEATURE_ENABLED(DEBUG_DEEP_SLEEP)
+			if (c == CNTRL_X ) { 
+				vPrintString("\t== Deep Sleep =="); vPrintEOL();
+				vPrintString("\tFor wake up: Power cycle, or Reset"); vPrintEOL();
+				vPrintString("\tDisconnect Serial Console and MSP-FET Programmer."); vPrintEOL();
+				RTC_C_disableInterrupt(RTC_C_BASE, (RTCOFIE + RTCTEVIE + RTCAIE + RTCRDYIE));
+       			RTC_C_clearInterrupt(RTC_C_BASE, (RTC_C_TIME_EVENT_INTERRUPT + RTC_C_CLOCK_ALARM_INTERRUPT + RTC_C_CLOCK_READ_READY_INTERRUPT + RTC_C_OSCILLATOR_FAULT_INTERRUPT)); 
+				EnterLPM35_cmd();
+				break;
+			}else
+#endif //GSD_FEATURE_ENABLED(DEBUG_DEEP_SLEEP)
 				cnt++;
 		}else
 			cnt++;

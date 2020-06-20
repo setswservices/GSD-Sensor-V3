@@ -253,6 +253,7 @@ typedef struct {
 // 1800-19FF FOR FR59x9
 
 void ResetHW(void);
+void EnterLPM35_cmd(void);
 
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 extern char prt_buf[32];
@@ -292,6 +293,7 @@ void initPortRF(void);
 void deinitPortRF(void); 
 void nRF905_spi_init(void);
 void nRF905_pwr_on(void);
+void nRF905_pwr_off(void);
 void nRF905_TxDone(void);
 void nRF905_RxStart(void);
 void nRF905_RxDone(void);

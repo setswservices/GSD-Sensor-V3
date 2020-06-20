@@ -506,6 +506,68 @@ static void EnterLPM35(void)
 
 }
 
+void EnterLPM35_cmd(void)
+{  
+#if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
+	vPrintEOL();
+	vPrintEOL();
+	debugPortDisable();
+#endif // GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
+	GPIO_setAsInputPin(    		GPIO_PORT_P2, GPIO_PIN2 + GPIO_PIN6 + GPIO_PIN7);
+	audio_int_disable();
+	nRF905_pwr_off();
+	audioOFF();
+
+	GPIO_setAsOutputPin(GPIO_PORT_P1, GPIO_PIN_ALL8);
+	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN5);      // Turn-off EEPROM
+	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN3);      // Turn-off Audio
+	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN6);      // SDA_NFC -> high
+    	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN4);      // RFID_Busy -> high
+	GPIO_setOutputLowOnPin (GPIO_PORT_P1, GPIO_PIN0+GPIO_PIN1+GPIO_PIN2+GPIO_PIN7);
+
+	GPIO_setAsOutputPin(GPIO_PORT_P2, GPIO_PIN_ALL8);
+	GPIO_setOutputLowOnPin (GPIO_PORT_P2, GPIO_PIN_ALL8);
+
+	GPIO_setAsOutputPin(GPIO_PORT_PB, GPIO_PIN_ALL16);
+	GPIO_setOutputLowOnPin (GPIO_PORT_PB, GPIO_PIN_ALL16);
+
+	GPIO_setAsOutputPin(GPIO_PORT_PC, GPIO_PIN_ALL16);
+	GPIO_setOutputLowOnPin (GPIO_PORT_PC, GPIO_PIN_ALL16);
+
+	GPIO_setAsOutputPin(GPIO_PORT_PD, GPIO_PIN_ALL16);
+	GPIO_setOutputLowOnPin (GPIO_PORT_PD, GPIO_PIN_ALL16);
+
+	GPIO_setAsOutputPin(GPIO_PORT_PE, GPIO_PIN_ALL16);
+	GPIO_setOutputLowOnPin (GPIO_PORT_PE, GPIO_PIN_ALL16);
+
+//	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN5);      // Turn-off EEPROM
+//	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN3);      // Turn-off Audio
+
+	GPIO_setOutputHighOnPin (GPIO_PORT_P4, GPIO_PIN1);      // SDA_EE -> high
+//	GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN6);      // SDA_NFC -> high
+//    GPIO_setOutputHighOnPin (GPIO_PORT_P1, GPIO_PIN4);      // RFID_Busy -> high
+	GPIO_setOutputHighOnPin (GPIO_PORT_P2, GPIO_PIN6+GPIO_PIN7);      // Turn-off LEDs
+
+
+//	nRF905_SetWkUpRTC();
+
+#if GSD_FEATURE_ENABLED(LPM4)
+	PMM_turnOffRegulator();
+
+	// Enter LPM3.5 mode with interrupts enabled. Note that this operation does  
+	// not return. The LPM3.5 will exit through a RESET event, resulting in a  
+	// re-start of the code.
+	__bis_SR_register(LPM4_bits | GIE);
+#else
+
+	EnterLPM3();
+
+	HWREG16(WDT_A_BASE + OFS_WDTCTL) |= WDTHOLD;  //Will reset MSP430,WDTIFG flag is set
+#endif // GSD_FEATURE_ENABLED(LPM4)
+
+}
+
+
 void ResetHW(void)
 {
 	HWREG16(WDT_A_BASE + OFS_WDTCTL) |= WDTHOLD;  //Will reset MSP430,WDTIFG flag is set

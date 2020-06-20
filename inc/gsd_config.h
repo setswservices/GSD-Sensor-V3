@@ -26,6 +26,11 @@ typedef unsigned char uint8_t;
 #define GSD_FEATURE_ENABLED(feature) \
     ((defined(feature ## _ENABLED) && (feature ## _ENABLED)) ? 1 : 0)
 
+//lint -emacro(491,MUSH_FEATURE_ENABLED) // Suppers warning 491 "non-standard use of 'defined' preprocessor operator"
+#define GSD_VERSION_EQU(version) 	\
+    ((defined(GSD_FW_VERSION_CMP) && (v ## version == GSD_FW_VERSION_CMP)) ? 1 : 0)
+
+
 #define delay_ms(_x_) 	_delay_cycles((unsigned long)((8000 -1)*(_x_)))
 /* ========================
  *  Event states
@@ -69,9 +74,15 @@ typedef unsigned char uint8_t;
   *  [ADK]  02/10/2020: Use this a debug mode for test deep sleep ans wakeup over weekend:
   *                               - Hit Ctrl-C, then Ctrl-S - and setup RTC to a Sunday with time 23:57
   *  					 -  Setup Alarm OFF to 23:59
-  *                               -  Setup Aklarm ON to 00:02
+  *                               -  Setup Alarm ON to 00:02
 */
 #define DEBUG_RTC_SETUP_ENABLED		0
+
+/* ====================================
+  *  [ADK]  06/19/2020: Use this a debug mode for set the HW to the deep sleep
+  *                               - Hit Ctrl-C, then Ctrl-X 
+*/
+#define DEBUG_DEEP_SLEEP_ENABLED		1
 
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 #define DEBUGGING_MENU_ENABLED				1
@@ -82,6 +93,7 @@ typedef unsigned char uint8_t;
 #if GSD_FEATURE_ENABLED(DEBUG_SERIAL_PORT)
 void	debugPortInit(void);
 int uart_getchar(void);
+void uart_cleanRXData(void);
 unsigned long uart_getInt(void);
 unsigned long  uart_getHex(void); 
 void debugPortDisable(void);
