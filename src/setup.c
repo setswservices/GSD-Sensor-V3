@@ -391,11 +391,23 @@ void setup_enter(void)
 #endif //GSD_FEATURE_ENABLED(DEBUG_RTC_SETUP)
 #if GSD_FEATURE_ENABLED(DEBUG_DEEP_SLEEP)
 			if (c == CNTRL_X ) { 
+				unsigned long inData;
+				uint8_t rc;
+
 				vPrintString("\t== Deep Sleep =="); vPrintEOL();
-				vPrintString("\tFor wake up: Power cycle, or Reset"); vPrintEOL();
-				vPrintString("\tDisconnect Serial Console and MSP-FET Programmer."); vPrintEOL();
-				RTC_C_disableInterrupt(RTC_C_BASE, (RTCOFIE + RTCTEVIE + RTCAIE + RTCRDYIE));
-       			RTC_C_clearInterrupt(RTC_C_BASE, (RTC_C_TIME_EVENT_INTERRUPT + RTC_C_CLOCK_ALARM_INTERRUPT + RTC_C_CLOCK_READ_READY_INTERRUPT + RTC_C_OSCILLATOR_FAULT_INTERRUPT)); 
+				vPrintString("Enter number of minutes for stay in the deep sleep [01-59]: "); vPrintEOL();
+				rc = uart_getHexTo(&inData);
+				if (rc == 0) {
+					vPrintString("\t=== Forever ===="); vPrintEOL();
+					vPrintString("\tFor wake up: Power cycle, or Reset"); vPrintEOL();
+					RTC_C_disableInterrupt(RTC_C_BASE, (RTCOFIE + RTCTEVIE + RTCAIE + RTCRDYIE));
+       				RTC_C_clearInterrupt(RTC_C_BASE, (RTC_C_TIME_EVENT_INTERRUPT + RTC_C_CLOCK_ALARM_INTERRUPT + RTC_C_CLOCK_READ_READY_INTERRUPT + RTC_C_OSCILLATOR_FAULT_INTERRUPT)); 
+				} else{
+					vPrintString("\tDisconnect Serial Console and MSP-FET Programmer."); vPrintEOL();
+					rtc_set_fake_time();
+					rtc_set_alarm(0x00, (uint8_t)(inData&0xFF));
+					rtc_enable_alarm();
+				}
 				EnterLPM35_cmd();
 				break;
 			}else
