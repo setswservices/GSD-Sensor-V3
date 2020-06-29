@@ -20,7 +20,11 @@
   *********************************************/
 	
 
+#if GSD_VERSION_EQU(5d8a4cb5) 
+uint8_t  rxTimerCnt;
+#else
 static uint8_t  rxTimerCnt;
+#endif // GSD_VERSION_EQU(5d8a4cb5) 
 extern uint8_t  gsd_rx_timer_event;
 
 void rxTimerInit(void)
@@ -56,6 +60,7 @@ void rxTimerStop(void)
     Timer_A_clear(TIMER_A3_BASE);
      rxTimerCnt = 1;
 }
+
 
 //******************************************************************************
 //

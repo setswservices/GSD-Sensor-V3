@@ -59,14 +59,14 @@ static void default_setup(void)
 	gsd_setup.RAMn_VAR_LMT2		= 0x0018;
 	gsd_setup.RAMn_ALRM0HR		= 0x17;	      // RTC Alarm setup hours for PWR OFF (to LPM3.5) in BCD
 	gsd_setup.RAMn_ALRM1HR		= 0x06;      //  RTC Alarm setup  hours for PWR ON (from PPM3.5) in BCD 		
-	gsd_setup.RAMn_HBPM_INTERVAL=0x24;  
-	gsd_setup.RAMn_LED_ONFLG	= 0xA5;
-	gsd_setup.RAMn_DEBUG		= 0xA5;
+	gsd_setup.RAMn_HBPM_INTERVAL=0x11;  
+	gsd_setup.RAMn_LED_ONFLG	= 0xFF;
+	gsd_setup.RAMn_DEBUG		= 0xFF;
 	gsd_setup.RAMn_BEACON_DLY	= 0x03;
 	gsd_setup.RAMn_STARTUP_FLG	= 0x01;
-	gsd_setup.RAMn_LED_DETECTFLG= 0x01;
-	gsd_setup.RAMn_ALRM0MIN		= 0x01;	// RTC Alarm setup Minutes for PWR OFF
-	gsd_setup.RAMn_ALRM1MIN		= 0x01;     // RTC Alarm setup minutes for PWR ON
+	gsd_setup.RAMn_LED_DETECTFLG= 0xFF;
+	gsd_setup.RAMn_ALRM0MIN		= 0x00;	// RTC Alarm setup Minutes for PWR OFF
+	gsd_setup.RAMn_ALRM1MIN		= 0x00;     // RTC Alarm setup minutes for PWR ON
 	gsd_setup.RAMn_RFTOUT		= 0x6000;         // [ADK] 11/11/2019  RTC Alarm setup for start HB communitations [hours:minutes]
 	gsd_setup.RAMn_RF_FREQ		= 0x01;
 // [ADK] 11/11/2019  add RTC setup for restore it at wakeup from LPM3.5

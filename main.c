@@ -79,6 +79,10 @@ extern uint16_t RAM_AUDIO_VAR01[];
 extern uint16_t RAM_AUDIO_ADJ_VAR[];
 extern uint16_t RAM_EVENTNo;
 extern uint16_t RAM_NoALRMS;
+#if GSD_VERSION_EQU(5d8a4cb5) 
+extern uint8_t  rxTimerCnt;
+#endif // GSD_VERSION_EQU(5d8a4cb5) 
+
 
 #pragma PERSISTENT(audio_samples_0)
 #pragma location = 0x10000 // memory address in FRAM2
@@ -245,11 +249,27 @@ int main(void)
 				nRF905_RxDone();
 			}
 			gsd_tx_packet_type = RAM_ALRM_FLG;
+#if GSD_VERSION_EQU(5d8a4cb5) 
+			if (rxTimerCnt == 1) // The Rx timer stopped 
+				nRF905_sndRstHB();
+			if (gsd_tx_packet_type == 1 /* ALARM */)
+				flash_led0_red();
+			else
+				flash_led1_green();
+			if (rxTimerCnt > 1) // The Rx timer not stopped
+				{	
+					rxTimerStop();
+					audioStart();
+					rxTimerSet(0x10);
+					rxTimerStart();
+				}
+#else			
 			nRF905_sndRstHB();
 			if (gsd_tx_packet_type == 1 /* ALARM */)
 				flash_led0_red();
 			else
 				flash_led1_green();
+#endif // GSD_VERSION_EQU(5d8a4cb5) 
 			gsd_audio_event = GSD_NO_EVENT;
 			
 #if GSD_FEATURE_ENABLED(HBEAT_ACK_PACKET)
@@ -267,9 +287,15 @@ int main(void)
 				DelayMS(3);
 				nRF905_RxStart();
 /*				if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == 0) */ {
-					
+
+#if GSD_VERSION_EQU(5d8a4cb5) 
+					audioStart();
+					rxTimerSet(0x10);
+					rxTimerStart();
+#else					
 					rxTimerSet(0x6);
 					rxTimerStart();
+#endif // GSD_VERSION_EQU(5d8a4cb5) 
 				}
 /*
 				else {
@@ -356,7 +382,10 @@ int main(void)
 			nRF905_RxDone();
 			nRF905_pwr_off();
 			rx_fault();
+#if GSD_VERSION_EQU(5d8a4cb5) 
+#else
 			if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3 || gsd_tx_packet_type == HBEAT_wAUDIO_PWR_OFF_3)
+#endif // GSD_VERSION_EQU(5d8a4cb5) 
 			{
 #if 0
 				vPrintString("\tGoing to deep sleep for 1 hour");

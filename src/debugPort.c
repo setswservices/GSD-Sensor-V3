@@ -82,7 +82,7 @@ void	debugPortInit(void)
     // Configure UART
     EUSCI_A_UART_initParam param = {0};
     param.selectClockSource = EUSCI_A_UART_CLOCKSOURCE_SMCLK;
-#if GSD_VERSION_EQU(53885a92)
+#if GSD_VERSION_EQU(53885a92) || GSD_VERSION_EQU(5d8a4cb5) 
     param.clockPrescalar = 52;
     param.firstModReg = 1;
     param.secondModReg = 73;
@@ -90,7 +90,7 @@ void	debugPortInit(void)
     param.clockPrescalar = 4;
     param.firstModReg = 5;
     param.secondModReg = 85;
-#endif //GSD_VERSION_EQU(53885a92)
+#endif //GSD_VERSION_EQU(53885a92) || GSD_VERSION_EQU(5d8a4cb5)
     param.parity = EUSCI_A_UART_NO_PARITY;
     param.msborLsbFirst = EUSCI_A_UART_LSB_FIRST;
     param.numberofStopBits = EUSCI_A_UART_ONE_STOP_BIT;
