@@ -82,7 +82,7 @@ void	debugPortInit(void)
     // Configure UART
     EUSCI_A_UART_initParam param = {0};
     param.selectClockSource = EUSCI_A_UART_CLOCKSOURCE_SMCLK;
-#if GSD_VERSION_EQU(53885a92) || GSD_VERSION_EQU(5d8a4cb5) 
+#if GSD_VERSION_EQU(53885a92) || GSD_VERSION_EQU(5d8a4cb5) || GSD_VERSION_EQU(418db043) 
     param.clockPrescalar = 52;
     param.firstModReg = 1;
     param.secondModReg = 73;

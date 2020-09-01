@@ -14,7 +14,11 @@
 #define GSD_FW_VERSION  (uint32_t)(0x53885a92)
 #define GSD_FW_VERSION_CMP  v53885a92
 */
-/* Mon Jun 29 10:12:53 2020 */
+/* Mon Jun 29 10:12:53 2020 
 #define GSD_FW_VERSION  (uint32_t)(0x5d8a4cb5)
 #define GSD_FW_VERSION_CMP  v5d8a4cb5
+*/
+/* Tue Sep 1 13:48:03 2020 */
+#define GSD_FW_VERSION  (uint32_t)(0x418db043)
+#define GSD_FW_VERSION_CMP  v418db043
 #endif
