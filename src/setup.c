@@ -268,6 +268,8 @@ static void setup(void)
 void put_setup(gsd_hb_packet_t  *hb_pkt)
 {
 	uint8_t updFlg = 0;
+	uint8_t prevMode = gsd_setup.RAMn_MODE; 
+
 	
 	if (hb_pkt->HB_TAGID == gsd_setup.RAMn_TAGID)
 	{
@@ -291,9 +293,12 @@ void put_setup(gsd_hb_packet_t  *hb_pkt)
 		if (hb_pkt->HB_PM_INTRV		!= gsd_setup.RAMn_HBPM_INTERVAL) 	{ gsd_setup.RAMn_HBPM_INTERVAL = hb_pkt->HB_PM_INTRV; updFlg = 1; }
 		if (hb_pkt->HB_AUDIO_THRSH	!= gsd_setup.RAMn_DA01) 				{ gsd_setup.RAMn_DA01 = hb_pkt->HB_AUDIO_THRSH; updFlg = 1; }
 		if (hb_pkt->HB_RF_DLY		!= gsd_setup.RAMn_SLOT_DLYNo) 		{ gsd_setup.RAMn_SLOT_DLYNo = hb_pkt->HB_RF_DLY; updFlg = 1; }
-		if (hb_pkt->HB_ALRM_THRSH_LOW	!= gsd_setup.RAMn_VAR_LMT0) 		{ gsd_setup.RAMn_VAR_LMT0 = hb_pkt->HB_ALRM_THRSH_LOW; updFlg = 1; }
-		if (hb_pkt->HB_ALRM_THRSH_HIGH	!= gsd_setup.RAMn_VAR_LMT2) 		{ gsd_setup.RAMn_VAR_LMT2 = hb_pkt->HB_ALRM_THRSH_HIGH; updFlg =1; }
-		
+		if ((prevMode&CODE_RUN_CALB_ALRM_TH) == 0)
+		{
+			// Do not update Alarm Threshold if we turn out of the Calibration mode
+			if (hb_pkt->HB_ALRM_THRSH_LOW	!= gsd_setup.RAMn_VAR_LMT0) 		{ gsd_setup.RAMn_VAR_LMT0 = hb_pkt->HB_ALRM_THRSH_LOW; updFlg = 1; }
+			if (hb_pkt->HB_ALRM_THRSH_HIGH	!= gsd_setup.RAMn_VAR_LMT2) 		{ gsd_setup.RAMn_VAR_LMT2 = hb_pkt->HB_ALRM_THRSH_HIGH; updFlg =1; }
+		}
 		if (updFlg) { 
 			save_setup();
 //			if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) 

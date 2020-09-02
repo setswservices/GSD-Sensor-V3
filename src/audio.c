@@ -39,6 +39,8 @@ extern uint16_t RAM_AUDIO_VAR1[];
 extern uint16_t RAM_AUDIO_VAR01[];
 extern uint16_t RAM_AUDIO_ADJ_VAR[];
 extern uint16_t RAM_EVENTNo;
+extern uint16_t RAM_AUDIO_CALB_VAR[];
+extern uint16_t nRAM_VAR_LMT2, nRAM_VAR_LMT0;
 
 #if GSD_FEATURE_ENABLED(DEBUGGING_MENU)
 uint8_t audio_intr_flag = 0;
@@ -153,7 +155,7 @@ void audioON(void)
               DLY 100ms
 */
 	       GPIO_setOutputLowOnPin(GPIO_PORT_P1, GPIO_PIN3);   
-		delay_ms(50);
+		DelayMS(50);
 }
 
 void audioOFF(void)
@@ -438,7 +440,7 @@ void DSPLY_EVENTNo(void)
 
 void DSPLY_VAR_LMT(void)
 {
-	vPrintString("\tVAR ALRM LMT=[");
+	vPrintString("\tVAR ALRM LMT=[0x");
 	vPrintString(psUInt16HexToString(gsd_setup.RAMn_VAR_LMT0, prt_buf)); vPrintString(", 0x");
 	vPrintString(psUInt16HexToString(gsd_setup.RAMn_VAR_LMT2, prt_buf)); vPrintString("]");
 	vPrintEOL();
@@ -453,6 +455,21 @@ void DSPLY_MSG_BELOW(void)
 	vPrintString("\t --REJECT--"); vPrintEOL();
 }
 
+void DSPLY_NEWMAX_VAR(void)
+{
+	vPrintString("CALB: NEW/MAX VAR=[0x");
+	vPrintString(psUInt16HexToString(RAM_AUDIO_CALB_VAR[0], prt_buf)); vPrintString(", 0x");
+	vPrintString(psUInt16HexToString(RAM_AUDIO_CALB_VAR[1], prt_buf)); vPrintString("]");
+	vPrintEOL();
+}
+void SAVE_VAR_LMT(void)
+{
+	gsd_setup.RAMn_VAR_LMT0 = nRAM_VAR_LMT0;
+	gsd_setup.RAMn_VAR_LMT2 = nRAM_VAR_LMT2;
+	save_setup();
+}
+
+
 // Call from ASM routine(s) 
 uint8_t getRAMn_DEBUG(void)
 {
@@ -461,6 +478,10 @@ uint8_t getRAMn_DEBUG(void)
 uint8_t getRAMn_MODE(void)
 {
 	return gsd_setup.RAMn_MODE;
+}
+uint8_t getRAMn_SF(void)
+{
+	return gsd_setup.RAMn_ALARM_SF;
 }
 uint16_t getRAMn_VAR_LMT2(void)
 {

@@ -241,8 +241,8 @@ int main(void)
     	while (1)
     	{
 		if (gsd_audio_event) {
-			vPrintString("\tAudio event");
-			vPrintEOL();
+//			vPrintString("\tAudio event");
+//			vPrintEOL();
 			audioHandleAudioEvent();	
 			if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) 
 			{
@@ -264,7 +264,10 @@ int main(void)
 					rxTimerStart();
 				}
 #else			
-			nRF905_sndRstHB();
+			if ((gsd_setup.RAMn_MODE&CODE_RUN_CALB_ALRM_TH) == CODE_RUN_CALB_ALRM_TH)
+				audioStart();
+			else
+				nRF905_sndRstHB();
 			if (gsd_tx_packet_type == 1 /* ALARM */)
 				flash_led0_red();
 			else
@@ -347,9 +350,11 @@ int main(void)
 				rxTimerStop();
 			nRF905_Rx();
 			nRF905_SetRTC();
-			nRF905_put_setup();  // For PWR_ON packets only
+			nRF905_put_setup();  // For PWR_ON packets, or in Calibration mode for switch out of this mode
 			nRF905_RxDone();
-			if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) 
+			if (((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) ||
+			    ((gsd_setup.RAMn_MODE&CODE_RUN_CALB_ALRM_TH) == CODE_RUN_CALB_ALRM_TH)	
+			) 
 			{
 				rx_led1_green();
 				nRF905_RxStart();
@@ -418,7 +423,9 @@ int main(void)
 			vPrintString("\tRTC Alarm event");
 			vPrintEOL();
 			gsd_rtc_event = GSD_NO_EVENT;
-			if ((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) 
+			if (((gsd_setup.RAMn_MODE&CODE_RUN_LIVE_TEST) == CODE_RUN_LIVE_TEST) ||
+			     ((gsd_setup.RAMn_MODE&CODE_RUN_CALB_ALRM_TH) == CODE_RUN_CALB_ALRM_TH)
+			) 
 			{
 				continue;
 			}

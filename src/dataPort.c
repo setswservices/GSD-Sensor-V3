@@ -38,18 +38,22 @@ void	dataPortInit(void)
     // Configure UART
     EUSCI_A_UART_initParam param = {0};
     param.selectClockSource = EUSCI_A_UART_CLOCKSOURCE_SMCLK;
-    if ((gsd_setup.RAMn_FUNCTION&CODE_RUN_PNNL_MODE) == CODE_RUN_PNNL_MODE) 
+#if GSD_FEATURE_ENABLED(UPLOAD_AUDIO_DATA_COMPATIBLE_WITH_PNNL)
+//    if ((gsd_setup.RAMn_FUNCTION&CODE_RUN_PNNL_MODE) == CODE_RUN_PNNL_MODE) 
     {
     	// [ADK] 03/03/2020   57600
     	param.clockPrescalar = 8;
     	param.firstModReg = 10;
     	param.secondModReg = 0xF7;
-    }else{
+    }
+#else
+   {
     	// [ADK] 03/03/2020   115200
     	param.clockPrescalar = 4;
     	param.firstModReg = 5;
     	param.secondModReg = 85;
     }
+#endif //GSD_FEATURE_ENABLED(UPLOAD_AUDIO_DATA_COMPATIBLE_WITH_PNNL)
     param.parity = EUSCI_A_UART_NO_PARITY;
     param.msborLsbFirst = EUSCI_A_UART_LSB_FIRST;
     param.numberofStopBits = EUSCI_A_UART_ONE_STOP_BIT;
@@ -109,7 +113,8 @@ void vWfDataOut(void)
 	dataPortInit();
 
 	vPrintString("> ");
-    	if ((gsd_setup.RAMn_FUNCTION&CODE_RUN_PNNL_MODE) == CODE_RUN_PNNL_MODE) 
+#if GSD_FEATURE_ENABLED(UPLOAD_AUDIO_DATA_COMPATIBLE_WITH_PNNL)
+//    	if ((gsd_setup.RAMn_FUNCTION&CODE_RUN_PNNL_MODE) == CODE_RUN_PNNL_MODE) 
     	{
     		strcpy(prt_buf, "  H");
 		data_uart_write(0, prt_buf, 3);
@@ -117,6 +122,7 @@ void vWfDataOut(void)
 		prt_buf[1] = 0x55;
 		data_uart_write(0, prt_buf, 2);
     	}
+#endif // GSD_FEATURE_ENABLED(UPLOAD_AUDIO_DATA_COMPATIBLE_WITH_PNNL)
 	
 	for(idx = 0; idx < 80; fram2+= 1024, idx++)
 	{
@@ -134,7 +140,8 @@ void vWfDataOut(void)
 		vMoveCursorBack();
 	}
 
-    	if ((gsd_setup.RAMn_FUNCTION&CODE_RUN_PNNL_MODE) == CODE_RUN_PNNL_MODE) 
+#if GSD_FEATURE_ENABLED(UPLOAD_AUDIO_DATA_COMPATIBLE_WITH_PNNL)
+//    	if ((gsd_setup.RAMn_FUNCTION&CODE_RUN_PNNL_MODE) == CODE_RUN_PNNL_MODE) 
     	{
     		strcpy(prt_buf, ",,");
 		data_uart_write(0, prt_buf, 2);
@@ -144,6 +151,7 @@ void vWfDataOut(void)
 		prt_buf[2] = 'H';
 		data_uart_write(0, prt_buf, 3);
     	}
+#endif //GSD_FEATURE_ENABLED(UPLOAD_AUDIO_DATA_COMPATIBLE_WITH_PNNL)
 
 	vPrintEOL(); vPrintEOL();
 

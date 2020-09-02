@@ -82,7 +82,8 @@ void	debugPortInit(void)
     // Configure UART
     EUSCI_A_UART_initParam param = {0};
     param.selectClockSource = EUSCI_A_UART_CLOCKSOURCE_SMCLK;
-#if GSD_VERSION_EQU(53885a92) || GSD_VERSION_EQU(5d8a4cb5) || GSD_VERSION_EQU(418db043) 
+//#if GSD_VERSION_EQU(53885a92) || GSD_VERSION_EQU(5d8a4cb5) || GSD_VERSION_EQU(418db043) 
+#if 1
     param.clockPrescalar = 52;
     param.firstModReg = 1;
     param.secondModReg = 73;
@@ -315,6 +316,7 @@ uint8_t uart_getHexTo(unsigned long *pOut)
 			if (idx == 8) {
 				inBuf[ idx] = '\0';
 				*pOut = strtoul((char *)inBuf, NULL, 16);
+				vPrintEOL();
 				return idx;
 			}
 		}

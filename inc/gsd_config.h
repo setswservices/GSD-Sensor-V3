@@ -27,9 +27,10 @@ typedef unsigned char uint8_t;
     ((defined(feature ## _ENABLED) && (feature ## _ENABLED)) ? 1 : 0)
 
 //lint -emacro(491,MUSH_FEATURE_ENABLED) // Suppers warning 491 "non-standard use of 'defined' preprocessor operator"
-#define GSD_VERSION_EQU(version) 	\
-    ((defined(GSD_FW_VERSION_CMP) && (v ## version == GSD_FW_VERSION_CMP)) ? 1 : 0)
+#define GSD_VERSION_EQU(version) 	(0)
+//    ((v ## version == GSD_FW_VERSION_CMP) ? 1 : 0)
 
+//    ((defined(GSD_FW_VERSION_CMP) && (v ## version == GSD_FW_VERSION_CMP)) ? 1 : 0)
 
 #define delay_ms(_x_) 	_delay_cycles((unsigned long)((8000 -1)*(_x_)))
 /* ========================
@@ -58,6 +59,7 @@ typedef unsigned char uint8_t;
 #define AUDIO_FRAM_CLEANUP_ENABLED			1
 #define DATA_PORT_ENABLED						1
 #define HBEAT_ACK_PACKET_ENABLED				1
+#define UPLOAD_AUDIO_DATA_COMPATIBLE_WITH_PNNL_ENABLED	0
 /* ====================================
   *  [ADK]  01/14/2020: LPM4 - 0.5uA for the CPU. We can't use it becouse the can't control +V_Audio. [ADK] 02/10/2020  - We can control GPIO pins, it "locked" 
   *                               LPM3 - 0.7uA - we can control GPIO pins.

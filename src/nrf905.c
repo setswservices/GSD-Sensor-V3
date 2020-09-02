@@ -404,7 +404,12 @@ void nRF905_put_setup(void)
 	if (gsd_tx_packet_type == HBEAT_wAUDIO_PWR_ON_3)
 	{
 		put_setup(hb_pkt);
+	}else
+	if ((gsd_setup.RAMn_MODE&CODE_RUN_CALB_ALRM_TH) == CODE_RUN_CALB_ALRM_TH) 
+	{
+		put_setup(hb_pkt);
 	}
+
 }
 
 void nRF905_SetWkUpRTC(void)

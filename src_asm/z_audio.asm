@@ -57,7 +57,12 @@ RAM_NoALRMS       .space 02H
 RAM_ALRM_VAR      .space 04H
 RAM_SCRATCH  .space 20H   ;GENERAL PURPOSE(SUBS & DEBUG)
 
-	.global RAM_AUDIO_VAR0,RAM_AUDIO_VAR1,RAM_AUDIO_VAR01,RAM_AUDIO_ADJ_VAR,RAM_NoALRMS,RAM_EVENTNo
+; [ADK] 09/02/2020 for save a results of calibration 
+nRAM_VAR_LMT2	  .space 02H
+nRAM_VAR_LMT0	  .space 02H
+
+	.global RAM_AUDIO_VAR0,RAM_AUDIO_VAR1,RAM_AUDIO_VAR01,RAM_AUDIO_ADJ_VAR,RAM_AUDIO_CALB_VAR,RAM_NoALRMS,RAM_EVENTNo
+	.global nRAM_VAR_LMT2,nRAM_VAR_LMT0
 
 ;**************************** STB & ST *************************
 ; STORE BYTE/WORD @ PTR                                        *
@@ -114,6 +119,7 @@ No_CNT_WINDOWS   .equ 02                  ;# 224ms WINDOWS AFTER 672ms A/D WINDO
 	.ref DSPLY_CNTRS,DSPLY_CHAR,DSPLY_VARIANCE,DSPLY_ADJ_VAR
 	.ref DSPLY_EVENTNo,DSPLY_VAR_LMT,DSPLY_MSG_ABOVE,DSPLY_MSG_BELOW
 	.ref getRAMn_MODE,getRAMn_DEBUG,getRAMn_VAR_LMT0,getRAMn_VAR_LMT2
+	.ref getRAMn_SF,DSPLY_NEWMAX_VAR,SAVE_VAR_LMT
 
 
 	.sect ".text"                     ; Code is relocatable
@@ -563,6 +569,85 @@ OUT_OF_RANGE: MOV    #0FFFFH,BX0         ;MAX FLG
               RET
 ;***************************************************************
 
+;CALLED FROM "ACTIVE_SHOOTER_LIVE"
+;CALLED FROM "ANALYZE_AUDIO_EVENT_FINAL"
+;************************ CALB_ALRM_THRESHOLD ******************
+;CONCEPT:                                                      *
+;   -COMPARES LASTEST VAR TO PAST MAX VAR                      *
+;   -IF NEWEST IS GREATER THEN TAKE IT x SF FOR NEW ALRM TH    *
+;                                                              *
+;ENTER with: RAM_AUDIO_ADJ_VAR+00H    (ADJ  VARIANCE DWORD)    *
+;          : RAMn_VAR_LMT2            (MSW)                    *
+;          : RAMn_VAR_LMT0            (LSW)                    *
+;          ; RAMn_ALRM_SF             (BYTE)                   *
+;EXIT  with: RAM_AUDIO_CALB_VAR+00H   (MAX  VARIANCE DWORD)    *
+;***************************************************************
+;              EXTERN SAVE_uP_SETUP,HW_MPY_3232    
+;              EXTERN RAMn_ALRM_SF
+              
+CALB_ALRM_THRESHOLD:
+;CMP NEW ADJ VAR TO OLD MAX VAR
+              CMP    RAM_AUDIO_CALB_VAR+02H,RAM_AUDIO_ADJ_VAR+02H ;CHK MSW
+              JEQ    CHK_LSW   
+              JC     NEW_MAX
+              JMP    LESS_THAN
+CHK_LSW:
+              CMP    RAM_AUDIO_CALB_VAR+00H,RAM_AUDIO_ADJ_VAR+00H ;CHK LSW
+              JNC    LESS_THAN
+              JEQ    LESS_THAN
+NEW_MAX:
+;NEW MAX VAR WHICH IS NOW OLD VAR
+;             MOV.B  #00H,CX
+;             MOV    RAM_AUDIO_VAR+06H,BX 
+;             MOV    RAM_AUDIO_VAR+04H,AX 
+;             MOV    RAM_AUDIO_VAR+0AH,BX0
+;             MOV    RAM_AUDIO_VAR+08H,AX0
+;             CALL   #SND_DEBUG
+
+              MOV    RAM_AUDIO_ADJ_VAR+02H,RAM_AUDIO_CALB_VAR+02H  ;NEW MAX ADJ VARIANCE
+              MOV    RAM_AUDIO_ADJ_VAR+00H,RAM_AUDIO_CALB_VAR+00H
+
+;ALRM LIMIT=MAX ADJ VAR * 2
+;             MOV    RAM_AUDIO_VAR+06H,RAMn_VAR_LMT2
+;             MOV    RAM_AUDIO_VAR+04H,RAMn_VAR_LMT0
+;             RLA    RAMn_VAR_LMT0         ; x2
+;             RLC    RAMn_VAR_LMT2
+;             RLA    RAMn_VAR_LMT0         ; x2
+;             RLC    RAMn_VAR_LMT2
+
+;WORKS 1/23/15
+;ALRM LIMIT=LATEST MAX ADJ VARIANCE * SCALE FACTOR
+              MOV    RAM_AUDIO_CALB_VAR+02H,BX
+              MOV    RAM_AUDIO_CALB_VAR+00H,AX
+              CALLA  #getRAMn_SF
+              MOV.B  r12, AX0
+;              MOV.B  RAMn_ALRM_SF,AX0       ;SCALE FACTOR-MULTIPLIER
+              CLR    BX0
+              CALL   #HW_MPY_3232           ;BX,AX*BX0,AX0=DX,CX,BX,AX
+;              MOV    BX,RAMn_VAR_LMT2
+;              MOV    AX,RAMn_VAR_LMT0
+              MOV    BX,nRAM_VAR_LMT2
+              MOV    AX,nRAM_VAR_LMT0
+
+              CALLA   #DSPLY_NEWMAX_VAR
+              CALLA   #DSPLY_VAR_LMT
+;              CALL   #SAVE_uP_SETUP
+	      CALLA   #SAVE_VAR_LMT	
+              RET
+
+;NEW ADJ VAR < NEW VAR
+LESS_THAN:    
+;             MOV.B  #0FFH,CX
+;             MOV    RAM_AUDIO_VAR+06H,BX 
+;             MOV    RAM_AUDIO_VAR+04H,AX 
+;             MOV    RAM_AUDIO_VAR+0AH,BX0
+;             MOV    RAM_AUDIO_VAR+08H,AX0
+;             CALL   #SND_DEBUG
+
+              CALLA   #DSPLY_NEWMAX_VAR
+              CALLA   #DSPLY_VAR_LMT
+              RET
+
 
 ;CALLED FROM "ACTIVE_SHOOTER_LIVE" (NOT USED)
 ;CALLED FROM "ANALYZE_AUDIO_EVENT_FINAL"
@@ -982,7 +1067,8 @@ NO_VAR_DSPLY:
 		 	   CALLA #getRAMn_MODE
               CMP.B  #CODE_CALB_ALRM_TH,r12 ;CHK MODE FLG FOR ALRM CALIBRATION TH
               JNE    NO_ALRM_CALB
-; [ADK] 12/13/2019              CALL   #CALB_ALRM_THRESHOLD         ;USES LARGEST ADJ VAR FOR NEW ALRM TH
+              CALL   #CALB_ALRM_THRESHOLD         ;USES LARGEST ADJ VAR FOR NEW ALRM TH
+	      NOP	
 NO_ALRM_CALB:
 
 
