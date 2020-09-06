@@ -41,6 +41,7 @@ extern uint16_t RAM_AUDIO_ADJ_VAR[];
 extern uint16_t RAM_EVENTNo;
 extern uint16_t RAM_AUDIO_CALB_VAR[];
 extern uint16_t nRAM_VAR_LMT2, nRAM_VAR_LMT0;
+extern uint16_t RAM_ALRM_VAR[];
 
 #if GSD_FEATURE_ENABLED(DEBUGGING_MENU)
 uint8_t audio_intr_flag = 0;

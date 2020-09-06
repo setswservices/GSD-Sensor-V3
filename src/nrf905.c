@@ -53,6 +53,8 @@ extern gsd_setup_t gsd_setup;
 extern uint8_t  gsd_tx_done_event;
 extern uint8_t  gsd_rx_packet_event;
 extern uint8_t  gsd_tx_packet_type;
+extern uint16_t RAM_ALRM_VAR[];
+extern uint16_t RAM_AUDIO_ADJ_VAR[];
 
 #pragma PERSISTENT(nRF905_mode)
 static uint8_t nRF905_mode;
@@ -407,6 +409,7 @@ void nRF905_put_setup(void)
 	}else
 	if ((gsd_setup.RAMn_MODE&CODE_RUN_CALB_ALRM_TH) == CODE_RUN_CALB_ALRM_TH) 
 	{
+		// [ADK] probably need another function ..
 		put_setup(hb_pkt);
 	}
 
@@ -597,6 +600,8 @@ void nRF905_sndRstHB(void)
 		}else{
 			send_wf_flag = 0x3; 
 			// will skip sending other packets, and start audio ...
+			hb_pkt->HB_ALRM_THRSH_LOW	= RAM_AUDIO_ADJ_VAR[0];
+			hb_pkt->HB_ALRM_THRSH_HIGH	= RAM_AUDIO_ADJ_VAR[1];
 		}
 	}
 

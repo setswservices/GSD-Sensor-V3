@@ -62,7 +62,7 @@ nRAM_VAR_LMT2	  .space 02H
 nRAM_VAR_LMT0	  .space 02H
 
 	.global RAM_AUDIO_VAR0,RAM_AUDIO_VAR1,RAM_AUDIO_VAR01,RAM_AUDIO_ADJ_VAR,RAM_AUDIO_CALB_VAR,RAM_NoALRMS,RAM_EVENTNo
-	.global nRAM_VAR_LMT2,nRAM_VAR_LMT0
+	.global nRAM_VAR_LMT2,nRAM_VAR_LMT0,RAM_ALRM_VAR
 
 ;**************************** STB & ST *************************
 ; STORE BYTE/WORD @ PTR                                        *
